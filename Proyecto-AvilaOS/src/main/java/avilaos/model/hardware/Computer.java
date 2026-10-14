@@ -26,6 +26,9 @@ public class Computer implements Clockable {
     //politica actual
     private volatile SchedulingPolicy policy;
     
+    //fix
+    private volatile boolean policyChanged=false;
+    
     //colas propias de este computador
     private final CustomQueue<PCB> newQueue = new CustomQueue<>();
     private final CustomQueue<PCB> readyQueue = new CustomQueue<>();
@@ -81,6 +84,8 @@ public class Computer implements Clockable {
         if(newPolicy==null){throw new IllegalArgumentException("La politica no puede ser nula");
         }
         this.policy=newPolicy;
+        //ontick reordena la cola en el siguiente ciclo
+        this.policyChanged =true;
     }
     
     /**
@@ -93,6 +98,14 @@ public class Computer implements Clockable {
      */
     @Override
     public void onTick(long cycle) {
+        
+        /**
+         * Si cambiaron la politica, reordena la cola de listos con la nueva
+         */
+        if(policyChanged){
+            policyChanged=false;
+            reorderReadyQueue(policy);
+        }
         SchedulingPolicy currentPolicy = policy;   // la leo una sola vez por ciclo
 
         // Admision
@@ -140,6 +153,22 @@ public class Computer implements Clockable {
     public CustomQueue<PCB> getReadySnapshot() { return readyQueue.copy(); }
     public CustomQueue<PCB> getBlockedSnapshot() { return blockedQueue.copy(); }
     public CustomQueue<PCB> getFinishedSnapshot() { return finishedQueue.copy(); }
+
+    
+    /**
+     * Sca todos los procesos de la cola de listos y los vuelve a insertar con la politica dada
+     * @param policy 
+     */
+    private void reorderReadyQueue(SchedulingPolicy policy) {
+        CustomQueue<PCB> temp = new CustomQueue<>();
+        PCB p;
+        while ((p = readyQueue.dequeue()) != null) {
+            temp.enqueue(p);
+        }
+        while ((p = temp.dequeue()) != null) {
+            policy.addToReady(readyQueue, p);
+        }
+    }
     
     
     
