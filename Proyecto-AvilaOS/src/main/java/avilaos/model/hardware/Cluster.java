@@ -42,17 +42,23 @@ public class Cluster {
     
     
     /**
-     * Crea una computadora nueva, le pone el siguiente ID y la registra en el reloj para que reciba cada ciclo
+     * Crea una computadora nueva, con cierto id secuencial y la registra en el reloj para que reciba cada ciclo
      * @param name nombre de la computadora
      * @param policy politica de planificacion inicial
-     * @return computadora creada
+     * @param ramSize tamano de la ram para esta computadora
+     * @return la computadora creada 
      */
-    public Computer addComputer (String name, SchedulingPolicy policy){
-        Computer c= new Computer (computers.size() + 1,name,policy);
+    public Computer addComputer(String name, SchedulingPolicy policy, int ramSize) {
+        Computer c = new Computer(computers.size() + 1, name, policy, ramSize);
         computers.addLast(c);
-        clock.register(c);
-        return c;}
+        clock.register(c);   // desde aqui el reloj le avisa de cada ciclo
+        return c;
+        }
     
+    /** Crea una computadora con la RAM por defecto (para pruebas). */
+    public Computer addComputer(String name, SchedulingPolicy policy) {
+        return addComputer(name, policy, Computer.DEFAULT_RAM_SIZE);
+    }
     
     /**
      * Busca una computadora por ID, devuelve null si no existe
@@ -83,7 +89,8 @@ public class Cluster {
         target.admit(process);
    
     }
-        /**
+    
+    /**
      * Cambia la politica de UNA computadora en caliente; las demas no se tocan.
      * @param computerId id de la computadora
      * @param algorithm politica nueva
@@ -97,7 +104,9 @@ public class Cluster {
     }
 
     /**
-     * Cambia el quantum de Round Robin de UNA computadora en caliente.
+     * Cambia el quantum de round robin de Una computadora en caliente
+     * @param computerId id de la computadora
+     * @param quantum nuevo (mayor a 0)
      */
     public void setQuantum(int computerId, int quantum) {
         Computer c = getComputer(computerId);
@@ -116,8 +125,19 @@ public class Cluster {
         clock.start();
     }
 
+    /**
+     * Pausa el reloj de todo el cluster
+     */
     public void pause() { clock.pause(); }
+    
+    /**
+     * renauda el reloj despues de una pausa
+     */
     public void resume() { clock.resume(); }
+    
+    /**
+     * apaga el reloj
+     */
     public void stop() { clock.stop(); }
 
     /** 
@@ -128,13 +148,21 @@ public class Cluster {
     public long getCurrentCycle() { return clock.getCurrentCycle(); }
     public int getNetworkLatency() { return networkLatency; }
 
+    /**
+     * Cambia la latencia de red en caliente
+     * @param cycles latencia en ciclos 
+     */
     public void setNetworkLatency(int cycles) {
         if (cycles < 0) {
             throw new IllegalArgumentException("La latencia de red no puede ser negativa");
         }
         this.networkLatency = cycles;
     }
-
+    
+    /**
+     * Cambia la duracion de un ciclo para todas las computadoras
+     * @param ms duracion en miliseg
+     */
     public void setCycleDurationMs(int ms) { clock.setCycleDurationMS(ms); }
 
     public int getCycleDurationMs() { return clock.getCycleDurationMs(); }
