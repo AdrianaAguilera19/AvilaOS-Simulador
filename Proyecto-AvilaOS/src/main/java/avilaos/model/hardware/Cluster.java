@@ -7,6 +7,7 @@ package avilaos.model.hardware;
 import avilaos.datastructures.CustomLinkedList;
 import avilaos.interfaces.SchedulingPolicy;
 import avilaos.model.process.PCB;
+import avilaos.enums.SchedulingAlgorithm;
 
 /**
  *Cluster de Avila OS
@@ -81,6 +82,29 @@ public class Cluster {
         
         target.admit(process);
    
+    }
+        /**
+     * Cambia la politica de UNA computadora en caliente; las demas no se tocan.
+     * @param computerId id de la computadora
+     * @param algorithm politica nueva
+     */
+    public void setPolicy(int computerId, SchedulingAlgorithm algorithm) {
+        Computer c = getComputer(computerId);
+        if (c == null) {
+            throw new IllegalArgumentException("No existe la computadora " + computerId);
+        }
+        c.setPolicy(algorithm);
+    }
+
+    /**
+     * Cambia el quantum de Round Robin de UNA computadora en caliente.
+     */
+    public void setQuantum(int computerId, int quantum) {
+        Computer c = getComputer(computerId);
+        if (c == null) {
+            throw new IllegalArgumentException("No existe la computadora " + computerId);
+        }
+        c.setQuantum(quantum);
     }
     /** 
      * Enciende el reloj. Exige tener al menos MIN_COMPUTERS computadoras

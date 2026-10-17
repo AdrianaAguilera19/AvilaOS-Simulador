@@ -6,10 +6,14 @@ package avilaos.model.hardware;
 
 import avilaos.datastructures.CustomQueue;
 import avilaos.enums.ExecutionMode;
+import avilaos.enums.SchedulingAlgorithm;
 import avilaos.enums.ProcessState;
 import avilaos.interfaces.Clockable;
 import avilaos.interfaces.SchedulingPolicy;
 import avilaos.model.process.PCB;
+import avilaos.scheduler.PolicyFactory;
+import avilaos.scheduler.RoundRobinPolicy;
+import java.util.Comparator;
 
 /**
  * Un computador del cluster. Cada instancia tiene sus propias colas y su
@@ -23,10 +27,15 @@ public class Computer implements Clockable {
     private final int id;
     private final String name;
 
-    // Politica actual. Es volatile porque la GUI puede cambiarla mientras el reloj corre
+    public static final int DEFAULT_QUANTUM = 4;
+
+    // Politica elegida. Es volatile porque la GUI la cambia mientras el reloj corre
     private volatile SchedulingPolicy policy;
-    // true cuando hay que reordenar la cola de listos con la politica nueva
-    private volatile boolean policyChanged = false;
+    // Ultima politica con la que se ordeno la cola de listos. Solo la toca el hilo del reloj:
+    // si policy != appliedPolicy, hay que reordenar (asi no hace falta una bandera aparte)
+    private SchedulingPolicy appliedPolicy;
+    // Quantum de Round Robin de este computador (se recuerda aunque la politica activa sea otra)
+    private volatile int quantum = DEFAULT_QUANTUM;
 
     // La CPU de este computador
     private final CPU cpu = new CPU();
@@ -53,6 +62,10 @@ public class Computer implements Clockable {
         this.id = id;
         this.name = name;
         this.policy = policy;
+        this.appliedPolicy = policy;
+        if (policy instanceof RoundRobinPolicy) {
+            this.quantum = ((RoundRobinPolicy) policy).getQuantum();
+        }
     }
 
     /**
@@ -66,8 +79,9 @@ public class Computer implements Clockable {
     }
 
     /**
-     * Cambia la politica en caliente. La cola de listos se reordena con la politica
-     * nueva en el siguiente ciclo (ver onTick).
+     * Cambia la politica en caliente (sin reiniciar nada). La cola de listos se
+     * reordena con la politica nueva al inicio del siguiente ciclo, y el proceso
+     * que esta en la CPU la conserva hasta que la politica nueva decida desalojarlo.
      * @param newPolicy politica nueva (no puede ser null)
      */
     public void setPolicy(SchedulingPolicy newPolicy) {
@@ -75,7 +89,30 @@ public class Computer implements Clockable {
             throw new IllegalArgumentException("La politica no puede ser nula");
         }
         this.policy = newPolicy;
-        this.policyChanged = true;   // onTick reordena la cola en el siguiente ciclo
+    }
+
+    /**
+     * Version para la GUI: elige la politica por su enum (usa el quantum actual del computador).
+     * @param algorithm algoritmo elegido en el selector
+     */
+    public void setPolicy(SchedulingAlgorithm algorithm) {
+        setPolicy(PolicyFactory.create(algorithm, quantum));
+    }
+
+    /**
+     * Cambia el quantum de Round Robin en caliente. Si la politica activa no es RR
+     * el valor se guarda y se usara cuando se elija RR.
+     * @param newQuantum nuevo quantum (mayor a 0)
+     */
+    public void setQuantum(int newQuantum) {
+        if (newQuantum <= 0) {
+            throw new IllegalArgumentException("El quantum debe ser mayor a 0");
+        }
+        this.quantum = newQuantum;
+        SchedulingPolicy current = policy;
+        if (current instanceof RoundRobinPolicy) {
+            ((RoundRobinPolicy) current).setQuantum(newQuantum);
+        }
     }
 
     /**
@@ -86,13 +123,13 @@ public class Computer implements Clockable {
      */
     @Override
     public void onTick(long cycle) {
-        // Si cambiaron la politica, reordeno la cola de listos con la nueva
-        // (lo hace el hilo del reloj, que es el unico que toca la cola)
-        if (policyChanged) {
-            policyChanged = false;
-            reorderReadyQueue(policy);
+        // La politica se lee una sola vez por ciclo. Si es distinta a la ultima aplicada,
+        // reordeno la cola de listos con ella (solo el hilo del reloj toca la cola)
+        SchedulingPolicy currentPolicy = policy;
+        if (currentPolicy != appliedPolicy) {
+            reorderReadyQueue(currentPolicy);
+            appliedPolicy = currentPolicy;
         }
-        SchedulingPolicy currentPolicy = policy;   // la leo una sola vez por ciclo
         cpu.startCycle();                          // la CPU cuenta el ciclo
 
         // 1. Admision: paso los procesos nuevos a listos (A13 lo condicionara a la RAM)
@@ -128,12 +165,23 @@ public class Computer implements Clockable {
         }
     }
 
-    /** Saca todos los procesos de la cola de listos y los vuelve a insertar con la politica dada. */
+    /**
+     * Saca todos los procesos de la cola de listos y los vuelve a insertar con la politica dada.
+     * Primero se pasan por un orden base (llegada, luego ID) para que FCFS/RR recuperen el
+     * orden de llegada y EDF/Prioridades desempaten por llegada.
+     */
     private void reorderReadyQueue(SchedulingPolicy pol) {
+        Comparator<PCB> byArrival = new Comparator<PCB>() {
+            @Override
+            public int compare(PCB a, PCB b) {
+                int c = Long.compare(a.getArrivalCycle(), b.getArrivalCycle());
+                return c != 0 ? c : Integer.compare(a.getId(), b.getId());
+            }
+        };
         CustomQueue<PCB> temp = new CustomQueue<>();
         PCB p;
         while ((p = readyQueue.dequeue()) != null) {
-            temp.enqueue(p);
+            temp.insertSorted(p, byArrival);
         }
         while ((p = temp.dequeue()) != null) {
             pol.addToReady(readyQueue, p);
@@ -143,6 +191,8 @@ public class Computer implements Clockable {
     public int getId() { return id; }
     public String getName() { return name; }
     public SchedulingPolicy getPolicy() { return policy; }
+    public SchedulingAlgorithm getAlgorithm() { return policy.getAlgorithm(); }
+    public int getQuantum() { return quantum; }
     public CPU getCpu() { return cpu; }
     public PCB getRunning() { return cpu.getRunning(); }
     public ExecutionMode getMode() { return cpu.getMode(); }
