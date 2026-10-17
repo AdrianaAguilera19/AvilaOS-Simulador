@@ -37,8 +37,14 @@ public class Computer implements Clockable {
     // Quantum de Round Robin de este computador (se recuerda aunque la politica activa sea otra)
     private volatile int quantum = DEFAULT_QUANTUM;
 
+    
+    
+     // Tamano de RAM por defecto cuando no se indica uno (pruebas)
+    public static final int DEFAULT_RAM_SIZE = 1024;
+    
     // La CPU de este computador
     private final CPU cpu = new CPU();
+    private final RAM ram;
 
     // Colas propias de este computador
     private final CustomQueue<PCB> newQueue = new CustomQueue<>();      // procesos que acaban de llegar
@@ -47,12 +53,22 @@ public class Computer implements Clockable {
     private final CustomQueue<PCB> finishedQueue = new CustomQueue<>(); // ya terminaron
 
     /**
+     * Crea el computador con la RAM por defecto (PRUEBAS)
+     * @param id
+     * @param name
+     * @param policy 
+     */
+    public Computer(int id, String name, SchedulingPolicy policy) {
+        this(id,name,policy,DEFAULT_RAM_SIZE);
+    }
+    
+    /**
      * Crea el computador con sus colas vacias y la CPU libre.
      * @param id identificador del computador
      * @param name nombre que se muestra en la interfaz (no puede estar vacio)
      * @param policy politica de planificacion inicial (no puede ser null)
      */
-    public Computer(int id, String name, SchedulingPolicy policy) {
+    public Computer(int id, String name, SchedulingPolicy policy, int ramSize) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("El nombre del computador no puede estar vacio");
         }
@@ -66,6 +82,7 @@ public class Computer implements Clockable {
         if (policy instanceof RoundRobinPolicy) {
             this.quantum = ((RoundRobinPolicy) policy).getQuantum();
         }
+        this.ram = new RAM(ramSize);
     }
 
     /**
@@ -74,6 +91,9 @@ public class Computer implements Clockable {
      * @param process proceso que llega al computador
      */
     public void admit(PCB process) {
+        if (process.getMemorySize() > ram.getTotalSize()) {
+            throw new IllegalArgumentException("El proceso necesita mas memoria que toda la RAM del computador");
+        }
         process.setState(ProcessState.NEW);
         newQueue.enqueue(process);
     }
@@ -133,11 +153,7 @@ public class Computer implements Clockable {
         cpu.startCycle();                          // la CPU cuenta el ciclo
 
         // 1. Admision: paso los procesos nuevos a listos (A13 lo condicionara a la RAM)
-        PCB p;
-        while ((p = newQueue.dequeue()) != null) {
-            p.setState(ProcessState.READY);
-            currentPolicy.addToReady(readyQueue, p);
-        }
+        admitFromNewQueue(currentPolicy);
 
         // 2. Si hay un proceso en la CPU, ejecuta una instruccion
         if (!cpu.isFree()) {
@@ -148,6 +164,9 @@ public class Computer implements Clockable {
                 cpu.unload();
                 running.setState(ProcessState.TERMINATED);
                 finishedQueue.enqueue(running);
+                ram.release(running.getMemorySize());// libera su memoria
+                admitFromNewQueue(currentPolicy); // y revisa si ya cabe alguno de los nuevo
+                
             } else if (currentPolicy.shouldPreempt(running, readyQueue, cpu.getCyclesInCpu())) {
                 // La politica pide sacarlo de la CPU: vuelve a la cola de listos
                 cpu.unload();
@@ -162,6 +181,19 @@ public class Computer implements Clockable {
             if (next != null) {
                 cpu.load(next, cycle);   // la CPU marca el estado y el primer ciclo
             }
+        }
+    }
+     /**
+     * Pasa de nuevos a listos los procesos que quepan en la RAM, en orden de llegada.
+     * Si el primero no cabe, se detiene y espera: asi un proceso grande no se queda
+     * esperando para siempre porque otros mas chicos le pasan por delante.
+     */
+    private void admitFromNewQueue(SchedulingPolicy currentPolicy) {
+        PCB p;
+        while ((p = newQueue.peek()) != null && ram.allocate(p.getMemorySize())) {
+            newQueue.dequeue();
+            p.setState(ProcessState.READY);
+            currentPolicy.addToReady(readyQueue, p);
         }
     }
 
@@ -194,6 +226,7 @@ public class Computer implements Clockable {
     public SchedulingAlgorithm getAlgorithm() { return policy.getAlgorithm(); }
     public int getQuantum() { return quantum; }
     public CPU getCpu() { return cpu; }
+    public RAM getRam() { return ram; }
     public PCB getRunning() { return cpu.getRunning(); }
     public ExecutionMode getMode() { return cpu.getMode(); }
 
