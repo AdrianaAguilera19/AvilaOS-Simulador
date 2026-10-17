@@ -174,8 +174,9 @@ public class Computer implements Clockable {
                 currentPolicy.addToReady(readyQueue, running);
             }
         }
-
-        // 3. Si la CPU quedo libre, la politica elige al siguiente
+        //3. deadlines: a cada proceso vivo se le resta 1 ciclo
+        updateDeadlines(currentPolicy);
+        // 4. Si la CPU quedo libre, la politica elige al siguiente
         if (cpu.isFree()) {
             PCB next = currentPolicy.selectNext(readyQueue);
             if (next != null) {
@@ -183,7 +184,71 @@ public class Computer implements Clockable {
             }
         }
     }
-     /**
+    
+    /**
+     * Resta 1 ciclo de deadline a todos los procesos que siguen vivos y termina a los que lleguen a 0. Los que ya
+     * terminaron normalmente no se tocan. Si alguno libero memoria, se revisa la cola de nuevos.
+     */
+    private void updateDeadlines(SchedulingPolicy currentPolicy) {
+        boolean freedMemory = false;
+
+        // El proceso que esta en la CPU
+        PCB running = cpu.getRunning();
+        if (running != null) {
+            running.decrementDeadline();
+            if (running.isDeadlineExpired()) {
+                cpu.unload();
+                terminateByDeadline(running, true);
+                freedMemory = true;
+            }
+        }
+
+        // Las colas. En nuevos todavia no tienen RAM reservada, en las otras si.
+        if (expireInQueue(readyQueue, true)) { freedMemory = true; }
+        if (expireInQueue(blockedQueue, true)) { freedMemory = true; }
+        expireInQueue(newQueue, false);
+
+        if (freedMemory) {
+            admitFromNewQueue(currentPolicy);   // se libero memoria:
+        }
+    }
+
+    /**
+     * Resta 1 al deadline de cada proceso de la cola y termina a los vencidos
+     * Recorre una copia para poder sacar procesos de la cola real mientras recorre
+     * @param queue cola a revisar
+     * @param hasRam true si los procesos de esa cola ya tienen RAM reservada
+     * @return true si libero memoria
+     */
+    private boolean expireInQueue(CustomQueue<PCB> queue, boolean hasRam) {
+        boolean released = false;
+        CustomQueue<PCB> snapshot = queue.copy();
+        for (int i = 0; i < snapshot.size(); i++) {
+            PCB p = snapshot.get(i);
+            p.decrementDeadline();
+            if (p.isDeadlineExpired()) {
+                queue.remove(p);
+                terminateByDeadline(p, hasRam);
+                released = released || hasRam;
+            }
+        }
+        return released;
+    }
+
+    /**
+     * Termina un proceso porque se le vencio el deadline
+     * lo marca, lo pasa a terminados y libera su memoria si la tenia
+     */
+    private void terminateByDeadline(PCB p, boolean hasRam) {
+        p.setState(ProcessState.TERMINATED);
+        p.markDeadlineMissed();
+        finishedQueue.enqueue(p);
+        if (hasRam) {
+            ram.release(p.getMemorySize());
+        }
+    }
+    
+    /**
      * Pasa de nuevos a listos los procesos que quepan en la RAM, en orden de llegada.
      * Si el primero no cabe, se detiene y espera: asi un proceso grande no se queda
      * esperando para siempre porque otros mas chicos le pasan por delante.
