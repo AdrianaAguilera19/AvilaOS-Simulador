@@ -33,6 +33,7 @@ public class PCB {
     private int deadline;
     private int remainingTime;
     private long firstExecutionCycle;
+    private boolean deadlineMissed = false;
     
     // Contexto de ejecución (se guarda al cambiar de proceso)
     private int programCounter;
@@ -174,6 +175,7 @@ public class PCB {
         this.itemsRequired = itemsRequired;
     }
     
+    public void markDeadlineMissed(){this.deadlineMissed=true;}
     
     //Getters
     public int getId() { return id; }
@@ -197,6 +199,7 @@ public class PCB {
     public int getIoDuration() { return ioDuration; }
     public int getCyclesPerItem() { return cyclesPerItem; }
     public int getItemsRequired() { return itemsRequired; }
+    public boolean isDeadlineMissed() { return deadlineMissed; }
     
     
     // Setters
