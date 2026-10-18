@@ -92,6 +92,15 @@ public class Computer implements Clockable {
      */
     public void admit(PCB process) {
         if (process.getMemorySize() > ram.getTotalSize()) {
+                    if (process == null) {
+            throw new IllegalArgumentException("El proceso no puede ser nulo");
+        }
+        // P08: un proceso solo puede entrar a la computadora a la que fue asignado (no hay migracion)
+        if (process.getComputerId() != id) {
+            throw new IllegalArgumentException("El proceso " + process.getName()
+                    + " pertenece a la computadora " + process.getComputerId()
+                    + " y no puede ser admitido en la " + id + " (no hay migracion)");
+        }
             throw new IllegalArgumentException("El proceso necesita mas memoria que toda la RAM del computador");
         }
         process.setState(ProcessState.NEW);
