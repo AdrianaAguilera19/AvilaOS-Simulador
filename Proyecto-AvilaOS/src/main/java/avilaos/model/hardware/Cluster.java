@@ -73,6 +73,15 @@ public class Cluster {
     
         return null;
     }
+        /**
+     * Indica si existe una computadora con ese id (P07). La GUI debe llamarlo ANTES de crear
+     * el PCB, para validar la computadora elegida por el usuario sin gastar un ID de proceso.
+     * @param computerId id elegido por el usuario
+     * @return true si la computadora existe
+     */
+    public boolean existsComputer(int computerId) {
+        return getComputer(computerId) != null;
+    }
     
     /**
      * Entrga un proceso a la computadora que indica su propio computerID
@@ -80,11 +89,14 @@ public class Cluster {
      * asi que un proceso no migra despues de asignarse
      * @param process proceso a ejecutar
      */
-    public void submit (PCB process){
+        public void submit (PCB process){
+        if (process == null) {
+            throw new IllegalArgumentException("El proceso no puede ser nulo");
+        }
         Computer target =getComputer(process.getComputerId());
     
         if(target ==null){
-            throw new IllegalArgumentException("No existe la computadora"+ process.getComputerId());}
+            throw new IllegalArgumentException("No existe la computadora "+ process.getComputerId());}
         
         target.admit(process);
    
