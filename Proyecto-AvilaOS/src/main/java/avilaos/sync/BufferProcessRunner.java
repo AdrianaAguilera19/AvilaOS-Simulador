@@ -4,6 +4,8 @@
  */
 package avilaos.sync;
 
+import avilaos.interfaces.ProcessRunner;
+import avilaos.model.process.StepOutcome;
 import avilaos.enums.ProcessType;
 import avilaos.enums.StepKind;
 import avilaos.model.process.PCB;
@@ -23,7 +25,7 @@ import avilaos.enums.AccessType;
  * Si un semWait bloquea al proceso, el paso cuenta como hecho: el valor del
  * semáforo ya bajó y, al despertarlo un semSignal, continúa con el paso siguiente.
  */
-public class BufferProcessRunner {
+public class BufferProcessRunner implements ProcessRunner {
 
     private enum Phase { WORK, WAIT_FIRST, WAIT_MUTEX, ACCESS, SIGNAL_MUTEX, SIGNAL_OTHER }
 
@@ -53,6 +55,7 @@ public class BufferProcessRunner {
     }
 
     /** Ejecuta un paso (un ciclo). */
+    @Override
     public StepOutcome step() {
         if (isFinished()) {
             return new StepOutcome(StepKind.FINISHED, null, pcb.getName() + " terminó");
@@ -140,8 +143,10 @@ public class BufferProcessRunner {
         phase = producer ? Phase.WORK : Phase.WAIT_FIRST;
     }
 
+    @Override
     public boolean isFinished() { return itemsDone >= pcb.getItemsRequired(); }
     public int getItemsDone() { return itemsDone; }
+    @Override
     public PCB getPcb() { return pcb; }
     public BoundedBuffer getBuffer() { return buffer; }
         public AccessType getAccessType() { return buffer.accessTypeFor(pcb); }

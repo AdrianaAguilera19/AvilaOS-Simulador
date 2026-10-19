@@ -14,6 +14,9 @@ import avilaos.model.process.PCB;
 import avilaos.scheduler.PolicyFactory;
 import avilaos.scheduler.RoundRobinPolicy;
 import java.util.Comparator;
+import avilaos.datastructures.CustomLinkedList;
+import avilaos.interfaces.ProcessRunner;
+import avilaos.model.process.StepOutcome;
 
 /**
  * Un computador del cluster. Cada instancia tiene sus propias colas y su
@@ -51,6 +54,10 @@ public class Computer implements Clockable {
     private final CustomQueue<PCB> readyQueue = new CustomQueue<>();    // listos para usar la CPU
     private final CustomQueue<PCB> blockedQueue = new CustomQueue<>();  // esperando E/S o un semaforo
     private final CustomQueue<PCB> finishedQueue = new CustomQueue<>(); // ya terminaron
+    
+    
+    // S04/P10: ejecutores de los procesos que usan semáforos (productores y consumidores)
+    private final CustomLinkedList<ProcessRunner> runners = new CustomLinkedList<>();
 
     /**
      * Crea el computador con la RAM por defecto (PRUEBAS)
@@ -150,7 +157,7 @@ public class Computer implements Clockable {
      * la CPU quedo libre.
      * @param cycle numero de ciclo global actual
      */
-    @Override
+        @Override
     public void onTick(long cycle) {
         // La politica se lee una sola vez por ciclo. Si es distinta a la ultima aplicada,
         // reordeno la cola de listos con ella (solo el hilo del reloj toca la cola)
@@ -166,9 +173,17 @@ public class Computer implements Clockable {
 
         // 2. Si hay un proceso en la CPU, ejecuta una instruccion
         if (!cpu.isFree()) {
-            cpu.executeUserInstruction();
             PCB running = cpu.getRunning();
-            if (running.isFinished()) {
+            ProcessRunner runner = findRunner(running);   // S04/P10: null si no usa semáforos
+            boolean blocked = false;
+            if (runner == null) {
+                cpu.executeUserInstruction();
+            } else {
+                blocked = executeRunnerStep(runner);
+            }
+            if (blocked) {
+                // el proceso ya salió de la CPU y está en la cola de bloqueados
+            } else if (runner != null ? runner.isFinished() : running.isFinished()) {
                 // Termino todas sus instrucciones: va a la cola de terminados
                 cpu.unload();
                 running.setState(ProcessState.TERMINATED);
@@ -294,6 +309,59 @@ public class Computer implements Clockable {
         }
     }
 
+        /**
+     * Registra el ejecutor de un proceso que usa semáforos. Debe hacerse antes de admitir
+     * el proceso. El proceso tiene que pertenecer a este computador (no hay migración).
+     * @param runner ejecutor del productor o consumidor
+     */
+    public void registerRunner(ProcessRunner runner) {
+        if (runner == null) {
+            throw new IllegalArgumentException("El ejecutor no puede ser nulo");
+        }
+        if (runner.getPcb().getComputerId() != id) {
+            throw new IllegalArgumentException("El proceso " + runner.getPcb().getName()
+                    + " pertenece a la computadora " + runner.getPcb().getComputerId()
+                    + " y no puede registrarse en la " + id);
+        }
+        runners.addLast(runner);
+    }
+
+    /** @return el ejecutor del proceso, o null si es un proceso normal (sin semáforos) */
+    private ProcessRunner findRunner(PCB pcb) {
+        CustomLinkedList<ProcessRunner> snapshot = runners.copy();
+        for (int i = 0; i < snapshot.size(); i++) {
+            if (snapshot.get(i).getPcb() == pcb) {
+                return snapshot.get(i);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Ejecuta un ciclo de un proceso con semáforos y reacciona a lo que devuelve.
+     * @return true si el proceso se bloqueó (ya salió de la CPU y está en la cola de bloqueados)
+     */
+    private boolean executeRunnerStep(ProcessRunner runner) {
+        StepOutcome outcome = runner.step();
+        switch (outcome.getKind()) {
+            case USER_INSTRUCTION:
+                cpu.executeUserInstruction();
+                return false;
+            case SYSTEM_INSTRUCTION:
+                cpu.executeSystemInstruction();
+                // S05: si outcome.getWoken() != null, ese proceso debe pasar a listos
+                return false;
+            case BLOCKED:
+                // el semWait que bloquea también gasta un ciclo en modo SO
+                cpu.executeSystemInstruction();
+                blockedQueue.enqueue(cpu.unload());   // P10: libera la CPU y pasa a bloqueados
+                return true;
+            default:
+                // FINISHED: no gasta ciclo; onTick lo termina porque runner.isFinished() es true
+                return false;
+        }
+    }
+    
     public int getId() { return id; }
     public String getName() { return name; }
     public SchedulingPolicy getPolicy() { return policy; }
