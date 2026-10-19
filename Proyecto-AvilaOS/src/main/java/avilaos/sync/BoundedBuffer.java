@@ -8,6 +8,8 @@ import avilaos.datastructures.CustomQueue;
 import avilaos.enums.BlockReason;
 import avilaos.model.hardware.RAM;
 import java.util.concurrent.Semaphore;
+import avilaos.enums.AccessType;
+import avilaos.model.process.PCB;
 
 /**
  * Buffer acotado del productor-consumidor. Vive en la RAM de su computador
@@ -129,6 +131,11 @@ public class BoundedBuffer {
         }
     }
 
+        /** LOCAL si el proceso está en el computador anfitrión; REMOTE si está en otro. */
+    public AccessType accessTypeFor(PCB pcb) {
+        return pcb.getComputerId() == hostComputerId ? AccessType.LOCAL : AccessType.REMOTE;
+    } 
+    
     public int getId() { return id; }
     public int getCapacity() { return capacity; }
     public int getHostComputerId() { return hostComputerId; }

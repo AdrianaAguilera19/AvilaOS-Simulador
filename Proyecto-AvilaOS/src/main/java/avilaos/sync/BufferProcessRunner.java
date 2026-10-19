@@ -7,6 +7,8 @@ package avilaos.sync;
 import avilaos.enums.ProcessType;
 import avilaos.enums.StepKind;
 import avilaos.model.process.PCB;
+import avilaos.enums.AccessType;
+
 
 /**
  * Ejecuta, paso a paso, el algoritmo del productor o del consumidor
@@ -142,4 +144,5 @@ public class BufferProcessRunner {
     public int getItemsDone() { return itemsDone; }
     public PCB getPcb() { return pcb; }
     public BoundedBuffer getBuffer() { return buffer; }
+        public AccessType getAccessType() { return buffer.accessTypeFor(pcb); }
 }
