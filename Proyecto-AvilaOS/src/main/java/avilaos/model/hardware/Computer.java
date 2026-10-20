@@ -17,6 +17,9 @@ import java.util.Comparator;
 import avilaos.datastructures.CustomLinkedList;
 import avilaos.interfaces.ProcessRunner;
 import avilaos.model.process.StepOutcome;
+import avilaos.enums.BlockReason;
+import avilaos.interfaces.ProcessWaker;
+
 
 /**
  * Un computador del cluster. Cada instancia tiene sus propias colas y su
@@ -58,6 +61,10 @@ public class Computer implements Clockable {
     
     // S04/P10: ejecutores de los procesos que usan semáforos (productores y consumidores)
     private final CustomLinkedList<ProcessRunner> runners = new CustomLinkedList<>();
+    
+    // S05: quien despierta a procesos de otros computadores, y avisos de despertar pendientes
+    private volatile ProcessWaker waker;
+    private final CustomQueue<PCB> pendingWakeQueue = new CustomQueue<>();
 
     /**
      * Crea el computador con la RAM por defecto (PRUEBAS)
@@ -167,6 +174,7 @@ public class Computer implements Clockable {
             appliedPolicy = currentPolicy;
         }
         cpu.startCycle();                          // la CPU cuenta el ciclo
+                processPendingWakes(currentPolicy);        // S05: pasa a listos a los despertados
 
         // 1. Admision: paso los procesos nuevos a listos (A13 lo condicionara a la RAM)
         admitFromNewQueue(currentPolicy);
@@ -349,7 +357,9 @@ public class Computer implements Clockable {
                 return false;
             case SYSTEM_INSTRUCTION:
                 cpu.executeSystemInstruction();
-                // S05: si outcome.getWoken() != null, ese proceso debe pasar a listos
+                                if (outcome.getWoken() != null) {
+                    wakeProcess(outcome.getWoken());   // S05
+                }
                 return false;
             case BLOCKED:
                 // el semWait que bloquea también gasta un ciclo en modo SO
@@ -359,6 +369,50 @@ public class Computer implements Clockable {
             default:
                 // FINISHED: no gasta ciclo; onTick lo termina porque runner.isFinished() es true
                 return false;
+        }
+    }
+    
+        /** El Cluster se registra aquí como waker cuando crea el computador. */
+    public void setWaker(ProcessWaker waker) {
+        this.waker = waker;
+    }
+
+    /**
+     * Pide despertar a un proceso de ESTE computador. Solo deja el aviso: el cambio de cola
+     * lo hace onTick() al inicio del siguiente ciclo, desde el hilo de este computador.
+     * @param pcb proceso bloqueado que debe pasar a listos
+     */
+    public void requestWake(PCB pcb) {
+        if (pcb == null) {
+            throw new IllegalArgumentException("El proceso no puede ser nulo");
+        }
+        pendingWakeQueue.enqueue(pcb);
+    }
+
+    /** Despierta a un proceso, sea de este computador o de otro. */
+    private void wakeProcess(PCB pcb) {
+        if (pcb.getComputerId() == id) {
+            requestWake(pcb);
+        } else if (waker != null) {
+            waker.wake(pcb);
+        } else {
+            throw new IllegalStateException("No hay forma de despertar al proceso " + pcb.getName()
+                    + " de la computadora " + pcb.getComputerId());
+        }
+    }
+
+    /**
+     * Pasa a listos a los procesos con aviso de despertar. Si el proceso ya no esta en
+     * la cola de bloqueados (por ejemplo, murio por deadline), se ignora el aviso.
+     */
+    private void processPendingWakes(SchedulingPolicy currentPolicy) {
+        PCB p;
+        while ((p = pendingWakeQueue.dequeue()) != null) {
+            if (blockedQueue.remove(p)) {
+                p.setBlockReason(BlockReason.NONE);
+                p.setState(ProcessState.READY);
+                currentPolicy.addToReady(readyQueue, p);
+            }
         }
     }
     
