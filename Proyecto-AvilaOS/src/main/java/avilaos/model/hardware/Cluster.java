@@ -8,6 +8,7 @@ import avilaos.datastructures.CustomLinkedList;
 import avilaos.interfaces.SchedulingPolicy;
 import avilaos.model.process.PCB;
 import avilaos.enums.SchedulingAlgorithm;
+import avilaos.interfaces.ProcessWaker;
 
 /**
  *Cluster de Avila OS
@@ -15,7 +16,7 @@ import avilaos.enums.SchedulingAlgorithm;
  * todas las computadoras son instancias de la misma clase 
  * @author Antonella Ruiz
  */
-public class Cluster {
+public class Cluster implements ProcessWaker {
     public static final int MIN_COMPUTERS=2;
     
     //un unico reloj para todo el sistema
@@ -50,6 +51,7 @@ public class Cluster {
      */
     public Computer addComputer(String name, SchedulingPolicy policy, int ramSize) {
         Computer c = new Computer(computers.size() + 1, name, policy, ramSize);
+        c.setWaker(this);   // S05: para despertar procesos de otros computadores
         computers.addLast(c);
         clock.register(c);   // desde aqui el reloj le avisa de cada ciclo
         return c;
@@ -72,6 +74,17 @@ public class Cluster {
             if(snapshot.get(i).getId() == id){return snapshot.get(i);}}
     
         return null;
+    }
+    
+    
+        /** Despierta a un proceso bloqueado: avisa al computador donde vive (no hay migración). */
+    @Override
+    public void wake(PCB pcb) {
+        Computer c = getComputer(pcb.getComputerId());
+        if (c == null) {
+            throw new IllegalArgumentException("No existe el computador " + pcb.getComputerId());
+        }
+        c.requestWake(pcb);
     }
         /**
      * Indica si existe una computadora con ese id (P07). La GUI debe llamarlo ANTES de crear
