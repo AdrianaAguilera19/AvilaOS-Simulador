@@ -9,5 +9,6 @@ public enum StepKind {
     USER_INSTRUCTION,    // producir o consumir: instrucción de usuario
     SYSTEM_INSTRUCTION,  // semWait, semSignal, insertar o extraer: modo SO
     BLOCKED,             // el semWait bloqueó al proceso (también cuenta como instrucción de SO)
+    NETWORK_WAIT,        // acceso remoto: el proceso espera la latencia de red fuera de la CPU
     FINISHED             // el proceso ya terminó todos sus elementos
 }

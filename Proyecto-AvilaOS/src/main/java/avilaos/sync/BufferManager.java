@@ -110,6 +110,6 @@ public class BufferManager {
             throw new IllegalArgumentException("El buffer B" + pcb.getAssociatedBufferId()
                     + " no existe");
         }
-        return new BufferProcessRunner(pcb, buffer);
+                return new BufferProcessRunner(pcb, buffer, cluster::getNetworkLatency);
     }
 }
