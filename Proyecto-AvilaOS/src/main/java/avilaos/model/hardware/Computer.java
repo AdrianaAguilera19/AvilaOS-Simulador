@@ -14,6 +14,7 @@ import avilaos.model.process.PCB;
 import avilaos.scheduler.PolicyFactory;
 import avilaos.scheduler.RoundRobinPolicy;
 import java.util.Comparator;
+import java.util.concurrent.Semaphore;
 import avilaos.datastructures.CustomLinkedList;
 import avilaos.interfaces.ProcessRunner;
 import avilaos.model.process.StepOutcome;
@@ -47,7 +48,9 @@ public class Computer implements Clockable {
     
      // Tamano de RAM por defecto cuando no se indica uno (pruebas)
     public static final int DEFAULT_RAM_SIZE = 1024;
-    
+        // Exclusion mutua entre el tick (hilo del reloj) y las lecturas de la GUI:
+    // asi la GUI nunca ve un proceso "a medio camino" entre dos colas
+    private final Semaphore stateLock = new Semaphore(1);
     // La CPU de este computador
     private final CPU cpu = new CPU();
     private final RAM ram;
@@ -165,8 +168,18 @@ public class Computer implements Clockable {
      * la CPU quedo libre.
      * @param cycle numero de ciclo global actual
      */
-        @Override
+            @Override
     public void onTick(long cycle) {
+        stateLock.acquireUninterruptibly();
+        try {
+            doTick(cycle);
+        } finally {
+            stateLock.release();
+        }
+    }
+
+    /** Cuerpo del ciclo; siempre se ejecuta con stateLock tomado (ver onTick). */
+    private void doTick(long cycle) {
         // La politica se lee una sola vez por ciclo. Si es distinta a la ultima aplicada,
         // reordeno la cola de listos con ella (solo el hilo del reloj toca la cola)
         SchedulingPolicy currentPolicy = policy;
@@ -424,12 +437,43 @@ public class Computer implements Clockable {
     public int getQuantum() { return quantum; }
     public CPU getCpu() { return cpu; }
     public RAM getRam() { return ram; }
-    public PCB getRunning() { return cpu.getRunning(); }
+        public PCB getRunning() {
+        stateLock.acquireUninterruptibly();
+        try {
+            return cpu.getRunning();
+        } finally {
+            stateLock.release();
+        }
+    }
     public ExecutionMode getMode() { return cpu.getMode(); }
 
-    // Copias de las colas para la GUI: asi la interfaz mira sin tocar las colas reales
-    public CustomQueue<PCB> getNewSnapshot() { return newQueue.copy(); }
-    public CustomQueue<PCB> getReadySnapshot() { return readyQueue.copy(); }
-    public CustomQueue<PCB> getBlockedSnapshot() { return blockedQueue.copy(); }
-    public CustomQueue<PCB> getFinishedSnapshot() { return finishedQueue.copy(); }
+        /**
+     * Copia de las colas y de la CPU en un mismo instante (entre dos ciclos).
+     * Es la forma recomendada para que la GUI dibuje un computador: todo coincide.
+     * @return foto consistente del computador
+     */
+    public ComputerSnapshot takeSnapshot() {
+        stateLock.acquireUninterruptibly();
+        try {
+            return new ComputerSnapshot(cpu.getRunning(), cpu.getMode(), newQueue.copy(),
+                    readyQueue.copy(), blockedQueue.copy(), finishedQueue.copy());
+        } finally {
+            stateLock.release();
+        }
+    }
+
+    // Copias de una sola cola (tambien esperan a que termine el ciclo en curso)
+    public CustomQueue<PCB> getNewSnapshot() { return copyQueue(newQueue); }
+    public CustomQueue<PCB> getReadySnapshot() { return copyQueue(readyQueue); }
+    public CustomQueue<PCB> getBlockedSnapshot() { return copyQueue(blockedQueue); }
+    public CustomQueue<PCB> getFinishedSnapshot() { return copyQueue(finishedQueue); }
+
+    private CustomQueue<PCB> copyQueue(CustomQueue<PCB> queue) {
+        stateLock.acquireUninterruptibly();
+        try {
+            return queue.copy();
+        } finally {
+            stateLock.release();
+        }
+    }
 }
