@@ -104,9 +104,9 @@ public class Computer implements Clockable {
      * listos lo hace onTick() desde el hilo del reloj, no quien llama a este metodo.
      * @param process proceso que llega al computador
      */
-    public void admit(PCB process) {
-        if (process.getMemorySize() > ram.getTotalSize()) {
-                    if (process == null) {
+    
+        public void admit(PCB process) {
+        if (process == null) {
             throw new IllegalArgumentException("El proceso no puede ser nulo");
         }
         // P08: un proceso solo puede entrar a la computadora a la que fue asignado (no hay migracion)
@@ -115,6 +115,7 @@ public class Computer implements Clockable {
                     + " pertenece a la computadora " + process.getComputerId()
                     + " y no puede ser admitido en la " + id + " (no hay migracion)");
         }
+        if (process.getMemorySize() > ram.getTotalSize()) {
             throw new IllegalArgumentException("El proceso necesita mas memoria que toda la RAM del computador");
         }
         process.setState(ProcessState.NEW);
