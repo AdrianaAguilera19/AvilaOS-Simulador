@@ -69,6 +69,9 @@ public class Computer implements Clockable {
     private volatile ProcessWaker waker;
     private final CustomQueue<PCB> pendingWakeQueue = new CustomQueue<>();
 
+     // S08: procesos esperando la latencia de red de un acceso remoto
+       private final NetworkWaitList networkWaits = new NetworkWaitList();
+       
     /**
      * Crea el computador con la RAM por defecto (PRUEBAS)
      * @param id
@@ -187,7 +190,14 @@ public class Computer implements Clockable {
             reorderReadyQueue(currentPolicy);
             appliedPolicy = currentPolicy;
         }
-        cpu.startCycle();                          // la CPU cuenta el ciclo
+        cpu.startCycle();     // la CPU cuenta el ciclo
+        
+                   // S08: avanza la espera de red; los que terminaron se despiertan en este mismo ciclo
+           CustomQueue<PCB> networkDone = networkWaits.tick();
+           PCB arrived;
+           while ((arrived = networkDone.dequeue()) != null) {
+               requestWake(arrived);
+           }
                 processPendingWakes(currentPolicy);        // S05: pasa a listos a los despertados
 
         // 1. Admision: paso los procesos nuevos a listos (A13 lo condicionara a la RAM)
@@ -359,7 +369,7 @@ public class Computer implements Clockable {
         return null;
     }
 
-    /**
+        /**
      * Ejecuta un ciclo de un proceso con semáforos y reacciona a lo que devuelve.
      * @return true si el proceso se bloqueó (ya salió de la CPU y está en la cola de bloqueados)
      */
@@ -371,7 +381,7 @@ public class Computer implements Clockable {
                 return false;
             case SYSTEM_INSTRUCTION:
                 cpu.executeSystemInstruction();
-                                if (outcome.getWoken() != null) {
+                if (outcome.getWoken() != null) {
                     wakeProcess(outcome.getWoken());   // S05
                 }
                 return false;
@@ -379,6 +389,15 @@ public class Computer implements Clockable {
                 // el semWait que bloquea también gasta un ciclo en modo SO
                 cpu.executeSystemInstruction();
                 blockedQueue.enqueue(cpu.unload());   // P10: libera la CPU y pasa a bloqueados
+                return true;
+            case NETWORK_WAIT:
+                // S08: la solicitud gasta un ciclo de SO y el proceso espera fuera de la CPU
+                cpu.executeSystemInstruction();
+                PCB waiting = cpu.unload();
+                waiting.setState(ProcessState.BLOCKED);
+                waiting.setBlockReason(BlockReason.NETWORK_LATENCY);
+                blockedQueue.enqueue(waiting);
+                networkWaits.add(waiting, outcome.getWaitCycles());
                 return true;
             default:
                 // FINISHED: no gasta ciclo; onTick lo termina porque runner.isFinished() es true
@@ -429,6 +448,12 @@ public class Computer implements Clockable {
             }
         }
     }
+    
+        /** Accesos a buffers remotos hechos por procesos de este computador. */
+    public long getNetworkAccesses() { return networkWaits.getTotalAccesses(); }
+
+    /** Ciclos que los procesos de este computador han esperado por la red. */
+    public long getNetworkWaitedCycles() { return networkWaits.getTotalWaitedCycles(); }
     
     public int getId() { return id; }
     public String getName() { return name; }
