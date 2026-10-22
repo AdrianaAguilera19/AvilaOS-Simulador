@@ -9,6 +9,7 @@ import avilaos.interfaces.SchedulingPolicy;
 import avilaos.model.process.PCB;
 import avilaos.enums.SchedulingAlgorithm;
 import avilaos.interfaces.ProcessWaker;
+import avilaos.sync.BufferManager;
 
 /**
  *Cluster de Avila OS
@@ -21,6 +22,9 @@ public class Cluster implements ProcessWaker {
     
     //un unico reloj para todo el sistema
     private final GlobalClock clock;
+    
+    
+    private final BufferManager bufferManager;
     
     //computadoras del cluster
     private final CustomLinkedList<Computer>computers = new CustomLinkedList<>();
@@ -39,6 +43,15 @@ public class Cluster implements ProcessWaker {
         
         this.clock = new GlobalClock (cycleDurationMs);
         this.networkLatency = networkLatency;
+        this.bufferManager = new BufferManager(this);
+    }
+
+    /** 
+     * 
+     * @return el gestor de buffers del cluster 
+     */
+    public BufferManager getBufferManager() {
+        return bufferManager;
     }
     
     

@@ -6,21 +6,28 @@ package avilaos.gui;
 
 import avilaos.datastructures.CustomQueue;
 import avilaos.enums.ExecutionMode;
+import avilaos.enums.SchedulingAlgorithm;
+import avilaos.model.hardware.Cluster;
 import avilaos.model.hardware.Computer;
 import avilaos.model.process.PCB;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 
 /**
- * Tarjeta que muestra el estado de UN computador: politica, proceso en CPU
- * (con su progreso), RAM, contadores de colas y el contenido de cada cola.
- * Solo lee (snapshots y getters): no modifica la simulacion.
+ * Tarjeta que muestra el estado de UN computador
+ * politica, proceso en CPU (con su progreso), RAM, contadores de colas y el contenido de cada cola.
+ * Permite cambiar la politica y abrir la tabla de PCB.
  * refresh() se llama desde el hilo de Swing.
  * @author Antonella Ruiz
  */
@@ -29,6 +36,7 @@ public class PanelComputador extends Tema.PanelRedondeado {
     // Cuantos procesos se listan como maximo en cada cola (el resto se resume en "+N")
     private static final int MAX_LISTA = 4;
 
+    private final Cluster cluster;
     private final Computer computer;
 
     private final Tema.Pastilla pillPolitica =
@@ -49,9 +57,19 @@ public class PanelComputador extends Tema.PanelRedondeado {
     private final JLabel lblBloqueados = Tema.etiqueta("-", Tema.NORMAL, Tema.TEXTO);
     private final JLabel lblTerminados = Tema.etiqueta("-", Tema.NORMAL, Tema.TEXTO);
 
-    /** Arma la tarjeta para el computador indicado. */
-    public PanelComputador(Computer computer) {
+    // Selector de politica y quantum (I04, I05)
+    private final JComboBox<SchedulingAlgorithm> cmbPolitica = new JComboBox<>(SchedulingAlgorithm.values());
+    private final JLabel lblQuantum = Tema.etiqueta("Quantum", Tema.NORMAL, Tema.TEXTO_SUAVE);
+    private final JTextField txtQuantum = new JTextField(3);
+    private final JLabel lblMsgPolitica = Tema.etiqueta(" ", Tema.PEQUENA, Tema.TEXTO_SUAVE);
+
+    // Ventana con la tabla de PCB (se crea la primera vez que se abre)
+    private DialogoProcesos dialogo;
+
+    /** Arma la tarjeta para el computador indicado; el cluster se usa para cambiar su politica. */
+    public PanelComputador(Cluster cluster, Computer computer) {
         super(Tema.TARJETA, Tema.BORDE, 24);
+        this.cluster = cluster;
         this.computer = computer;
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(20, 22, 20, 22));
@@ -78,7 +96,26 @@ public class PanelComputador extends Tema.PanelRedondeado {
         cuerpo.setOpaque(false);
         cuerpo.setLayout(new BoxLayout(cuerpo, BoxLayout.Y_AXIS));
 
-        // --- Proceso en CPU ---
+        // Selector de politica y quantum 
+        cuerpo.add(Box.createVerticalStrut(18));
+        cuerpo.add(alinear(Tema.etiqueta("CAMBIAR POLITICA", Tema.PEQUENA, Tema.TEXTO_SUAVE)));
+        cuerpo.add(Box.createVerticalStrut(4));
+        cmbPolitica.setSelectedItem(computer.getPolicy().getAlgorithm());
+        cmbPolitica.addActionListener(e -> actualizarQuantumVisible());
+        txtQuantum.setText(String.valueOf(computer.getQuantum()));
+        Tema.Boton btnAplicar = new Tema.Boton("Aplicar", false);
+        btnAplicar.addActionListener(e -> aplicarPolitica());
+        JPanel filaPolitica = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        filaPolitica.setOpaque(false);
+        filaPolitica.add(cmbPolitica);
+        filaPolitica.add(lblQuantum);
+        filaPolitica.add(txtQuantum);
+        filaPolitica.add(btnAplicar);
+        cuerpo.add(alinear(filaPolitica));
+        cuerpo.add(alinear(lblMsgPolitica));
+        actualizarQuantumVisible();
+
+        // Proceso en CPU
         cuerpo.add(Box.createVerticalStrut(18));
         cuerpo.add(alinear(Tema.etiqueta("PROCESO EN CPU", Tema.PEQUENA, Tema.TEXTO_SUAVE)));
         cuerpo.add(Box.createVerticalStrut(4));
@@ -96,7 +133,7 @@ public class PanelComputador extends Tema.PanelRedondeado {
         cuerpo.add(Box.createVerticalStrut(6));
         cuerpo.add(alinear(barProceso));
 
-        // --- RAM ---
+        // RAM 
         cuerpo.add(Box.createVerticalStrut(18));
         JPanel filaRam = new JPanel(new BorderLayout());
         filaRam.setOpaque(false);
@@ -106,7 +143,7 @@ public class PanelComputador extends Tema.PanelRedondeado {
         cuerpo.add(Box.createVerticalStrut(6));
         cuerpo.add(alinear(barRam));
 
-        // --- Contadores de colas ---
+        // Contadores de colas 
         cuerpo.add(Box.createVerticalStrut(18));
         JPanel colas = new JPanel(new GridLayout(2, 2, 10, 10));
         colas.setOpaque(false);
@@ -116,7 +153,7 @@ public class PanelComputador extends Tema.PanelRedondeado {
         colas.add(cntTerminados);
         cuerpo.add(alinear(colas));
 
-        // --- Contenido de las colas ---
+        // Contenido de las colas 
         cuerpo.add(Box.createVerticalStrut(16));
         cuerpo.add(alinear(Tema.etiqueta("COLA DE LISTOS (EN ORDEN)", Tema.PEQUENA, Tema.TEXTO_SUAVE)));
         cuerpo.add(Box.createVerticalStrut(3));
@@ -130,9 +167,66 @@ public class PanelComputador extends Tema.PanelRedondeado {
         cuerpo.add(Box.createVerticalStrut(3));
         cuerpo.add(alinear(lblTerminados));
 
+        // Tabla de PCB 
+        Tema.Boton btnPcb = new Tema.Boton("Ver procesos (PCB)", true);
+        btnPcb.addActionListener(e -> abrirProcesos());
+        JPanel filaPcb = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 8));
+        filaPcb.setOpaque(false);
+        filaPcb.add(btnPcb);
+        derecha.add(filaPcb, BorderLayout.CENTER);
+
         add(header, BorderLayout.NORTH);
         add(cuerpo, BorderLayout.CENTER);
         refresh();
+    }
+
+    /** El campo de quantum solo tiene sentido con Round Robin. */
+    private void actualizarQuantumVisible() {
+        boolean rr = cmbPolitica.getSelectedItem() == SchedulingAlgorithm.ROUND_ROBIN;
+        lblQuantum.setVisible(rr);
+        txtQuantum.setVisible(rr);
+    }
+
+    /** Aplica la politica elegida (y el quantum si es Round Robin) usando el cluster. */
+    private void aplicarPolitica() {
+        SchedulingAlgorithm algo = (SchedulingAlgorithm) cmbPolitica.getSelectedItem();
+        try {
+            if (algo == SchedulingAlgorithm.ROUND_ROBIN) {
+                cluster.setQuantum(computer.getId(), leerQuantum());
+            }
+            cluster.setPolicy(computer.getId(), algo);
+            mostrarMensaje("Politica aplicada: " + algo.toString().replace('_', ' '), false);
+        } catch (IllegalArgumentException ex) {
+            mostrarMensaje(ex.getMessage(), true);
+        }
+    }
+
+    /** Lee y valida el quantum escrito por el usuario. */
+    private int leerQuantum() {
+        int q;
+        try {
+            q = Integer.parseInt(txtQuantum.getText().trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("El quantum debe ser un numero entero");
+        }
+        if (q <= 0) {
+            throw new IllegalArgumentException("El quantum debe ser mayor a 0");
+        }
+        return q;
+    }
+
+    private void mostrarMensaje(String texto, boolean error) {
+        lblMsgPolitica.setText(texto);
+        lblMsgPolitica.setForeground(error ? new Color(0xB3261E) : new Color(0x3E8E70));
+    }
+
+    /** Abre (o trae al frente) la ventana con la tabla de procesos de este computador. */
+    private void abrirProcesos() {
+        if (dialogo == null) {
+            dialogo = new DialogoProcesos(SwingUtilities.getWindowAncestor(this), computer);
+        }
+        dialogo.setVisible(true);
+        dialogo.toFront();
     }
 
     /** Hace que un componente ocupe todo el ancho del BoxLayout. */
@@ -181,7 +275,9 @@ public class PanelComputador extends Tema.PanelRedondeado {
         return texto;
     }
 
-    /** Vuelve a leer el estado del computador y actualiza la tarjeta. */
+    /** 
+     * Vuelve a leer el estado del computador y actualiza la tarjeta
+     */
     public void refresh() {
         pillPolitica.setText(computer.getPolicy().getAlgorithm().toString().replace('_', ' '));
 
