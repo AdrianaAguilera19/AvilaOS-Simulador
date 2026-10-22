@@ -112,10 +112,16 @@ public class PanelCluster extends JPanel {
         JPanel center = new JPanel(new GridLayout(1, panels.length, 18, 0));
         center.setOpaque(false);
         for (int i = 0; i < panels.length; i++) {
-            panels[i] = new PanelComputador(computers.get(i));
+            panels[i] = new PanelComputador(cluster, computers.get(i));
             center.add(panels[i]);
         }
-        add(center, BorderLayout.CENTER);
+        // Con scroll: si la ventana es baja, las tarjetas no se cortan
+        javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(center);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        add(scroll, BorderLayout.CENTER);
 
         actualizarEstado();
         refreshTimer = new Timer(REFRESH_MS, e -> refresh());
