@@ -9,6 +9,7 @@ import avilaos.interfaces.SchedulingPolicy;
 import avilaos.model.process.PCB;
 import avilaos.enums.SchedulingAlgorithm;
 import avilaos.interfaces.ProcessWaker;
+import avilaos.log.EventLogger;
 import avilaos.sync.BufferManager;
 
 /**
@@ -25,6 +26,9 @@ public class Cluster implements ProcessWaker {
     
     
     private final BufferManager bufferManager;
+    
+    // S11: registro global de eventos, compartido por todas las computadoras
+    private final EventLogger logger = new EventLogger();
     
     //computadoras del cluster
     private final CustomLinkedList<Computer>computers = new CustomLinkedList<>();
@@ -54,6 +58,13 @@ public class Cluster implements ProcessWaker {
         return bufferManager;
     }
     
+    /**
+     * @return el registro global de eventos del sistema (S11)
+     */
+    public EventLogger getLogger() {
+        return logger;
+    }
+    
     
     /**
      * Crea una computadora nueva, con cierto id secuencial y la registra en el reloj para que reciba cada ciclo
@@ -65,6 +76,7 @@ public class Cluster implements ProcessWaker {
     public Computer addComputer(String name, SchedulingPolicy policy, int ramSize) {
         Computer c = new Computer(computers.size() + 1, name, policy, ramSize);
         c.setWaker(this);   // S05: para despertar procesos de otros computadores
+                c.setLogger(logger);   // S11: todos escriben en el mismo log
         computers.addLast(c);
         clock.register(c);   // desde aqui el reloj le avisa de cada ciclo
         return c;
