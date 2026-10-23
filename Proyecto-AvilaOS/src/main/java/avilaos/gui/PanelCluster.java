@@ -37,6 +37,7 @@ public class PanelCluster extends JPanel {
 
     private final Cluster cluster;
     private final PanelComputador[] panels;
+        private final PanelLog panelLog;   // S11 / I06: log de eventos
     private int estado = DETENIDO;
 
     private final Tema.Pastilla pillCiclo =
@@ -123,6 +124,10 @@ public class PanelCluster extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(16);
         add(scroll, BorderLayout.CENTER);
 
+        
+        // Log de eventos debajo de las tarjetas
+        panelLog = new PanelLog(cluster.getLogger());
+        add(panelLog, BorderLayout.SOUTH);
         actualizarEstado();
         refreshTimer = new Timer(REFRESH_MS, e -> refresh());
         refreshTimer.start();
@@ -191,6 +196,7 @@ public class PanelCluster extends JPanel {
         for (int i = 0; i < panels.length; i++) {
             panels[i].refresh();
         }
+        panelLog.refresh();
     }
 
     /** Detiene el refresco y el reloj (llamar al cerrar la ventana). */

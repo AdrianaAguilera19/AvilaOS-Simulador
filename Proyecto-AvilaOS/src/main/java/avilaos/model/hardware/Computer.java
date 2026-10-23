@@ -20,6 +20,8 @@ import avilaos.interfaces.ProcessRunner;
 import avilaos.model.process.StepOutcome;
 import avilaos.enums.BlockReason;
 import avilaos.interfaces.ProcessWaker;
+   import avilaos.log.EventLogger;
+   import avilaos.enums.StepKind;
 
 
 /**
@@ -71,6 +73,10 @@ public class Computer implements Clockable {
 
      // S08: procesos esperando la latencia de red de un acceso remoto
        private final NetworkWaitList networkWaits = new NetworkWaitList();
+       // S11: registro global de eventos (lo pone el Cluster; puede ser null en pruebas sueltas)
+              private volatile EventLogger logger;
+              // Ciclo en curso: lo escribe y lo lee solo el hilo del reloj, dentro de doTick
+       private long currentCycle = 0;
        
     /**
      * Crea el computador con la RAM por defecto (PRUEBAS)
@@ -183,6 +189,7 @@ public class Computer implements Clockable {
 
     /** Cuerpo del ciclo; siempre se ejecuta con stateLock tomado (ver onTick). */
     private void doTick(long cycle) {
+                currentCycle = cycle;   // S11: los eventos de este ciclo se registran con este numero
         // La politica se lee una sola vez por ciclo. Si es distinta a la ultima aplicada,
         // reordeno la cola de listos con ella (solo el hilo del reloj toca la cola)
         SchedulingPolicy currentPolicy = policy;
@@ -220,6 +227,8 @@ public class Computer implements Clockable {
                 cpu.unload();
                 running.setState(ProcessState.TERMINATED);
                 finishedQueue.enqueue(running);
+                                logEvent(running.getName() + " terminó y libera " + running.getMemorySize()
+                        + " de memoria");   // S11
                 ram.release(running.getMemorySize());// libera su memoria
                 admitFromNewQueue(currentPolicy); // y revisa si ya cabe alguno de los nuevo
                 
@@ -237,6 +246,7 @@ public class Computer implements Clockable {
             PCB next = currentPolicy.selectNext(readyQueue);
             if (next != null) {
                 cpu.load(next, cycle);   // la CPU marca el estado y el primer ciclo
+                                logEvent(next.getName() + " pasa a ejecución (" + currentPolicy.getAlgorithm() + ")");   // S11
             }
         }
     }
@@ -299,6 +309,7 @@ public class Computer implements Clockable {
         p.setState(ProcessState.TERMINATED);
         p.markDeadlineMissed();
         finishedQueue.enqueue(p);
+                logEvent(p.getName() + " terminado por vencimiento de su deadline");   // S11
         if (hasRam) {
             ram.release(p.getMemorySize());
         }
@@ -375,6 +386,12 @@ public class Computer implements Clockable {
      */
     private boolean executeRunnerStep(ProcessRunner runner) {
         StepOutcome outcome = runner.step();
+                // S11: semWait, semSignal, insertar, extraer, bloqueos y accesos remotos van al log.
+        // La descripción ya trae el proceso y el buffer; aquí se le pone el ciclo y el computador.
+        // Producir o consumir (instrucción de usuario) no es un evento de sincronización.
+        if (outcome.getKind() != StepKind.USER_INSTRUCTION && outcome.getKind() != StepKind.FINISHED) {
+            logEvent(outcome.getDescription());
+        }
         switch (outcome.getKind()) {
             case USER_INSTRUCTION:
                 cpu.executeUserInstruction();
@@ -402,6 +419,18 @@ public class Computer implements Clockable {
             default:
                 // FINISHED: no gasta ciclo; onTick lo termina porque runner.isFinished() es true
                 return false;
+        }
+    }
+        /** El Cluster le entrega el registro global de eventos al crear el computador (S11). */
+    public void setLogger(EventLogger logger) {
+        this.logger = logger;
+    }
+
+    /** Registra un evento de este computador en el ciclo en curso. Si no hay logger, no hace nada. */
+    private void logEvent(String message) {
+        EventLogger l = logger;
+        if (l != null && message != null && !message.isBlank()) {
+            l.log(currentCycle, id, message);
         }
     }
     
@@ -442,6 +471,7 @@ public class Computer implements Clockable {
         PCB p;
         while ((p = pendingWakeQueue.dequeue()) != null) {
             if (blockedQueue.remove(p)) {
+                                logEvent(p.getName() + " se desbloquea (" + p.getBlockReason() + ") y pasa a listos");   // S11
                 p.setBlockReason(BlockReason.NONE);
                 p.setState(ProcessState.READY);
                 currentPolicy.addToReady(readyQueue, p);
