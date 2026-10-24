@@ -130,6 +130,41 @@ public class BoundedBuffer {
             dataLock.release();
         }
     }
+        /**
+     * Foto de solo lectura del buffer: contenido, capacidad, valor de cada semáforo y procesos
+     * que esperan en cada uno (S09). Cada parte se lee con su propio candado, así que la foto
+     * nunca ve un semáforo o la cola de datos "a medio escribir".
+     */
+    public BufferSnapshot takeSnapshot() {
+        return new BufferSnapshot(id, hostComputerId, capacity, getContents(),
+                mutex.getValue(), items.getValue(), spaces.getValue(),
+                waitingNames(mutex), waitingNames(items), waitingNames(spaces));
+    }
+
+    /** Copia de los elementos guardados, del más antiguo al más reciente. */
+    public int[] getContents() {
+        dataLock.acquireUninterruptibly();
+        try {
+            CustomQueue<Integer> copy = data.copy();
+            int[] result = new int[copy.size()];
+            for (int i = 0; i < result.length; i++) {
+                result[i] = copy.get(i);
+            }
+            return result;
+        } finally {
+            dataLock.release();
+        }
+    }
+
+    private static String[] waitingNames(SemaforoAvila sem) {
+        CustomQueue<PCB> waiting = sem.getWaitingSnapshot();
+        String[] names = new String[waiting.size()];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = waiting.get(i).getName();
+        }
+        return names;
+    }
+    
 
         /** LOCAL si el proceso está en el computador anfitrión; REMOTE si está en otro. */
     public AccessType accessTypeFor(PCB pcb) {
