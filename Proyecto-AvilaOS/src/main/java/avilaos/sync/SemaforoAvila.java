@@ -22,6 +22,9 @@ public class SemaforoAvila {
     private final CustomQueue<PCB> waiting = new CustomQueue<>();
     private final Semaphore lock = new Semaphore(1); // protege value y waiting
 
+    // S10: esperas ya terminadas (el proceso se despertó) y suma de sus ciclos bloqueado
+    private long completedWaits = 0;
+    private long totalWaitedCycles = 0;
     public SemaforoAvila(int initialValue, BlockReason reason) {
         if (initialValue < 0) {
             throw new IllegalArgumentException("El valor inicial no puede ser negativo");
@@ -65,6 +68,39 @@ public class SemaforoAvila {
         } finally {
             lock.release();
         }
+    }
+        /**
+     * Anota que un proceso estuvo bloqueado en este semáforo durante cierta cantidad de ciclos
+     * (S10). Lo llama el Kernel cuando despierta al proceso; el semáforo no conoce el reloj.
+     * @param cycles ciclos que estuvo bloqueado (no puede ser negativo)
+     */
+    public void recordWait(long cycles) {
+        if (cycles < 0) {
+            throw new IllegalArgumentException("Los ciclos de espera no pueden ser negativos");
+        }
+        lock.acquireUninterruptibly();
+        try {
+            completedWaits++;
+            totalWaitedCycles += cycles;
+        } finally {
+            lock.release();
+        }
+    }
+
+    /** @return {esperas terminadas, suma de ciclos bloqueado}, leídas a la vez */
+    public long[] getWaitStats() {
+        lock.acquireUninterruptibly();
+        try {
+            return new long[] { completedWaits, totalWaitedCycles };
+        } finally {
+            lock.release();
+        }
+    }
+
+    /** Promedio de ciclos bloqueado en este semáforo; 0 si todavía no hubo esperas. */
+    public double getAverageWait() {
+        long[] stats = getWaitStats();
+        return stats[0] == 0 ? 0.0 : (double) stats[1] / stats[0];
     }
 
     public BlockReason getReason() {

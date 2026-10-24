@@ -77,6 +77,7 @@ public class Cluster implements ProcessWaker {
         Computer c = new Computer(computers.size() + 1, name, policy, ramSize);
         c.setWaker(this);   // S05: para despertar procesos de otros computadores
                 c.setLogger(logger);   // S11: todos escriben en el mismo log
+                c.setWaitRecorder(bufferManager);   // S10: para medir cuanto esperan en los semaforos
         computers.addLast(c);
         clock.register(c);   // desde aqui el reloj le avisa de cada ciclo
         return c;

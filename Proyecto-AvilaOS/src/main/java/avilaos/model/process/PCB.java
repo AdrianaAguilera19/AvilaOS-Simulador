@@ -16,6 +16,7 @@ public class PCB {
     
     public static final int NO_BUFFER = -1;
     public static final long NOT_STARTED = -1;
+    public static final long NOT_BLOCKED = -1;
     
     
     // Identificacion
@@ -54,6 +55,7 @@ public class PCB {
     private BlockReason blockReason;
     private int associatedBufferId;
     private int blockedCycles;
+          private long blockedSinceCycle = NOT_BLOCKED;   // S10: ciclo en que se bloqueó en un semáforo
     
     public PCB(String name, ProcessType type, int priority, int memorySize,int totalInstructions, int deadline, int computerId, long arrivalCycle){
         
@@ -193,6 +195,7 @@ public class PCB {
     public int getProgramCounter() { return programCounter; }
     public int getMemoryAddressRegister() { return memoryAddressRegister; }
     public BlockReason getBlockReason() { return blockReason; }
+          public long getBlockedSinceCycle() { return blockedSinceCycle; }
     public int getAssociatedBufferId() { return associatedBufferId; }
     public int getBlockedCycles() { return blockedCycles; }
     public int getIoInterval() { return ioInterval; }
@@ -205,6 +208,7 @@ public class PCB {
     // Setters
     public void setState(ProcessState state) { this.state = state; }
     public void setBlockReason(BlockReason blockReason) { this.blockReason = blockReason; }
+          public void setBlockedSinceCycle(long cycle) { this.blockedSinceCycle = cycle; }
     public void setAssociatedBufferId(int associatedBufferId) { this.associatedBufferId = associatedBufferId; }
 
     @Override

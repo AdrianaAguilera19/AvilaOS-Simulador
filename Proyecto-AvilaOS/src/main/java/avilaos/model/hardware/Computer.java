@@ -20,6 +20,7 @@ import avilaos.interfaces.ProcessRunner;
 import avilaos.model.process.StepOutcome;
 import avilaos.enums.BlockReason;
 import avilaos.interfaces.ProcessWaker;
+import avilaos.interfaces.SemaphoreWaitRecorder;
    import avilaos.log.EventLogger;
    import avilaos.enums.StepKind;
 
@@ -75,6 +76,8 @@ public class Computer implements Clockable {
        private final NetworkWaitList networkWaits = new NetworkWaitList();
        // S11: registro global de eventos (lo pone el Cluster; puede ser null en pruebas sueltas)
               private volatile EventLogger logger;
+                          // S10: quien lleva la cuenta de las esperas en semaforos (lo pone el Cluster; puede ser null)
+    private volatile SemaphoreWaitRecorder waitRecorder;
               // Ciclo en curso: lo escribe y lo lee solo el hilo del reloj, dentro de doTick
        private long currentCycle = 0;
        
@@ -405,7 +408,9 @@ public class Computer implements Clockable {
             case BLOCKED:
                 // el semWait que bloquea también gasta un ciclo en modo SO
                 cpu.executeSystemInstruction();
-                blockedQueue.enqueue(cpu.unload());   // P10: libera la CPU y pasa a bloqueados
+                                PCB blockedPcb = cpu.unload();   // P10: libera la CPU y pasa a bloqueados
+                blockedPcb.setBlockedSinceCycle(currentCycle);   // S10: desde cuando espera
+                blockedQueue.enqueue(blockedPcb);
                 return true;
             case NETWORK_WAIT:
                 // S08: la solicitud gasta un ciclo de SO y el proceso espera fuera de la CPU
@@ -421,9 +426,28 @@ public class Computer implements Clockable {
                 return false;
         }
     }
+        /** El Cluster le entrega quien lleva la cuenta de las esperas en semaforos (S10). */
+    public void setWaitRecorder(SemaphoreWaitRecorder waitRecorder) {
+        this.waitRecorder = waitRecorder;
+    }
         /** El Cluster le entrega el registro global de eventos al crear el computador (S11). */
     public void setLogger(EventLogger logger) {
         this.logger = logger;
+    }
+        /**
+     * S10: si el proceso estaba bloqueado en un semaforo, anota cuantos ciclos espero
+     * (ciclo actual menos el ciclo en que se bloqueo). Las esperas de E/S o de red no cuentan.
+     */
+    private void recordSemaphoreWait(PCB p) {
+        BlockReason reason = p.getBlockReason();
+        boolean esSemaforo = reason == BlockReason.MUTEX
+                || reason == BlockReason.EMPTY_SEMAPHORE
+                || reason == BlockReason.FULL_SEMAPHORE;
+        SemaphoreWaitRecorder recorder = waitRecorder;
+        if (recorder != null && esSemaforo && p.getBlockedSinceCycle() != PCB.NOT_BLOCKED) {
+            recorder.recordSemaphoreWait(p, reason, currentCycle - p.getBlockedSinceCycle());
+        }
+        p.setBlockedSinceCycle(PCB.NOT_BLOCKED);
     }
 
     /** Registra un evento de este computador en el ciclo en curso. Si no hay logger, no hace nada. */
@@ -472,6 +496,7 @@ public class Computer implements Clockable {
         while ((p = pendingWakeQueue.dequeue()) != null) {
             if (blockedQueue.remove(p)) {
                                 logEvent(p.getName() + " se desbloquea (" + p.getBlockReason() + ") y pasa a listos");   // S11
+                                recordSemaphoreWait(p);   // S10: cuanto estuvo bloqueado en el semaforo
                 p.setBlockReason(BlockReason.NONE);
                 p.setState(ProcessState.READY);
                 currentPolicy.addToReady(readyQueue, p);
