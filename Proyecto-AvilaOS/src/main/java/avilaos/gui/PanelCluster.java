@@ -37,6 +37,7 @@ public class PanelCluster extends JPanel {
 
     private final Cluster cluster;
     private final PanelComputador[] panels;
+          private final PanelBuffers panelBuffers;   // S09: buffers y semaforos
         private final PanelLog panelLog;   // S11 / I06: log de eventos
     private int estado = DETENIDO;
 
@@ -125,9 +126,14 @@ public class PanelCluster extends JPanel {
         add(scroll, BorderLayout.CENTER);
 
         
-        // Log de eventos debajo de las tarjetas
-        panelLog = new PanelLog(cluster.getLogger());
-        add(panelLog, BorderLayout.SOUTH);
+                  // Debajo de las tarjetas: buffers (S09) a la izquierda y log de eventos a la derecha
+          panelBuffers = new PanelBuffers(cluster);
+          panelLog = new PanelLog(cluster.getLogger());
+          JPanel sur = new JPanel(new GridLayout(1, 2, 18, 0));
+          sur.setOpaque(false);
+          sur.add(panelBuffers);
+          sur.add(panelLog);
+          add(sur, BorderLayout.SOUTH);
         actualizarEstado();
         refreshTimer = new Timer(REFRESH_MS, e -> refresh());
         refreshTimer.start();
@@ -196,6 +202,7 @@ public class PanelCluster extends JPanel {
         for (int i = 0; i < panels.length; i++) {
             panels[i].refresh();
         }
+                  panelBuffers.refresh();
         panelLog.refresh();
     }
 
