@@ -12,6 +12,7 @@ import avilaos.datastructures.CustomLinkedList;
 import avilaos.model.hardware.Cluster;
 import avilaos.model.hardware.Computer;
 import avilaos.sync.BoundedBuffer;
+import avilaos.sync.BufferMetrics;
 import avilaos.sync.BufferSnapshot;
 import java.awt.BorderLayout;
 import javax.swing.BorderFactory;
@@ -44,7 +45,7 @@ public class PanelBuffers extends Tema.PanelRedondeado {
         this.cluster = cluster;
         setLayout(new BorderLayout(0, 8));
         setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
-        setPreferredSize(new java.awt.Dimension(100, 250));
+                setPreferredSize(new java.awt.Dimension(100, 290));
 
         add(Tema.etiqueta("Buffers", Tema.SUBTITULO, Tema.TEXTO), BorderLayout.NORTH);
 
@@ -114,6 +115,10 @@ public class PanelBuffers extends Tema.PanelRedondeado {
         private final JLabel lblMutex = Tema.etiqueta(" ", Tema.NORMAL, Tema.TEXTO);
         private final JLabel lblItems = Tema.etiqueta(" ", Tema.NORMAL, Tema.TEXTO);
         private final JLabel lblSpaces = Tema.etiqueta(" ", Tema.NORMAL, Tema.TEXTO);
+                // S10: metricas del buffer
+        private final JLabel lblProduccion = Tema.etiqueta(" ", Tema.NORMAL, Tema.TEXTO);
+        private final JLabel lblPromedios = Tema.etiqueta(" ", Tema.NORMAL, Tema.TEXTO);
+        private final JLabel lblEsperas = Tema.etiqueta(" ", Tema.NORMAL, Tema.TEXTO);
 
         TarjetaBuffer(BoundedBuffer buffer, String nombreHost) {
             super(Tema.FONDO, Tema.BORDE, 16);
@@ -143,6 +148,12 @@ public class PanelBuffers extends Tema.PanelRedondeado {
             agregar(lblMutex);
             agregar(lblItems);
             agregar(lblSpaces);
+                        agregar(Box.createVerticalStrut(6));
+            lblPromedios.setFont(mono);
+            lblEsperas.setFont(mono);
+            agregar(lblProduccion);
+            agregar(lblPromedios);
+            agregar(lblEsperas);
         }
 
         private void agregar(java.awt.Component c) {
@@ -168,6 +179,20 @@ public class PanelBuffers extends Tema.PanelRedondeado {
                     + "   esperando: " + texto(s.getItemsWaiting()));
             lblSpaces.setText("espacios   valor " + valor(s.getSpacesValue())
                     + "   esperando: " + texto(s.getSpacesWaiting()));
+            
+            // S10: produccion y tiempo promedio de bloqueo en cada semaforo (en ciclos)
+            BufferMetrics m = buffer.takeMetrics();
+            lblProduccion.setText("Producidos " + m.getProduced() + "   Consumidos " + m.getConsumed());
+            lblPromedios.setText("bloqueo promedio (ciclos)   mutex " + promedio(m.getMutexAverageWait())
+                    + "   elementos " + promedio(m.getItemsAverageWait())
+                    + "   espacios " + promedio(m.getSpacesAverageWait()));
+            lblEsperas.setText("esperas terminadas           mutex " + String.format("%4d", m.getMutexWaits())
+                    + "   elementos " + String.format("%4d", m.getItemsWaits())
+                    + "   espacios " + String.format("%4d", m.getSpacesWaits()));
+        }
+                /** Promedio con un decimal y ancho fijo; "-" mientras todavia no hubo esperas. */
+        private static String promedio(double v) {
+            return v == 0.0 ? "   -" : String.format("%4.1f", v);
         }
 
         /** Valor del semaforo con ancho fijo (2 caracteres) para alinear las filas. */

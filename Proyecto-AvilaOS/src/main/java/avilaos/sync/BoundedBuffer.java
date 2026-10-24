@@ -165,7 +165,17 @@ public class BoundedBuffer {
         return names;
     }
     
-
+    /**
+     * Foto de solo lectura de las métricas del buffer (S10): elementos producidos y consumidos
+     * y esperas (cantidad y ciclos) de cada semáforo.
+     */
+    public BufferMetrics takeMetrics() {
+        long[] m = mutex.getWaitStats();
+        long[] i = items.getWaitStats();
+        long[] s = spaces.getWaitStats();
+        return new BufferMetrics(id, getTotalProduced(), getTotalConsumed(),
+                m[0], m[1], i[0], i[1], s[0], s[1]);
+    }
         /** LOCAL si el proceso está en el computador anfitrión; REMOTE si está en otro. */
     public AccessType accessTypeFor(PCB pcb) {
         return pcb.getComputerId() == hostComputerId ? AccessType.LOCAL : AccessType.REMOTE;

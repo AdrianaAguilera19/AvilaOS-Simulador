@@ -5,6 +5,8 @@
 package avilaos.sync;
 
 import avilaos.datastructures.CustomLinkedList;
+import avilaos.enums.BlockReason;
+import avilaos.interfaces.SemaphoreWaitRecorder;
 import avilaos.model.hardware.Cluster;
 import avilaos.model.hardware.Computer;
 import avilaos.model.process.PCB;
@@ -13,8 +15,7 @@ import java.util.concurrent.Semaphore;
 /**
  * Crea y registra los buffers del sistema distribuido. Cada buffer reserva su
  * espacio en la RAM de su computador anfitrión. Los IDs son únicos en todo el cluster.
- */
-public class BufferManager {
+ */public class BufferManager implements SemaphoreWaitRecorder {
 
     /** Memoria por elemento cuando no se indica otra (valor por acordar en el equipo). */
     public static final int DEFAULT_ITEM_SIZE = 1;
@@ -91,6 +92,30 @@ public class BufferManager {
         }
         buffer.destroy();
         return true;
+    }
+        /**
+     * S10: anota cuánto esperó un proceso en un semáforo. Busca el buffer del proceso y suma la
+     * espera al semáforo que corresponde al motivo de bloqueo. Otros motivos (E/S, red) se ignoran.
+     */
+    @Override
+    public void recordSemaphoreWait(PCB pcb, BlockReason reason, long cycles) {
+        BoundedBuffer buffer = getBuffer(pcb.getAssociatedBufferId());
+        if (buffer == null) {
+            return;
+        }
+        switch (reason) {
+            case MUTEX:
+                buffer.getMutex().recordWait(cycles);
+                break;
+            case EMPTY_SEMAPHORE:
+                buffer.getItems().recordWait(cycles);
+                break;
+            case FULL_SEMAPHORE:
+                buffer.getSpaces().recordWait(cycles);
+                break;
+            default:
+                break;
+        }
     }
 
     /** Copia de la lista de buffers para que la pantalla la dibuje. */
