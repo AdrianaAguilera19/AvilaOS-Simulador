@@ -105,6 +105,17 @@ public class PanelCluster extends JPanel {
         controles.setLayout(new BoxLayout(controles, BoxLayout.Y_AXIS));
         controles.add(fila1);
         controles.add(fila2);
+        
+        // I05: crear procesos y buffers con la simulacion en marcha
+        Tema.Boton btnNuevoProceso = new Tema.Boton("Nuevo proceso", false);
+        Tema.Boton btnNuevoBuffer = new Tema.Boton("Nuevo buffer", false);
+        btnNuevoProceso.addActionListener(e -> nuevoProceso());
+        btnNuevoBuffer.addActionListener(e -> nuevoBuffer());
+        JPanel fila3 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 4));
+        fila3.setOpaque(false);
+        fila3.add(btnNuevoBuffer);
+        fila3.add(btnNuevoProceso);
+        controles.add(fila3);
         top.add(controles, BorderLayout.EAST);
         add(top, BorderLayout.NORTH);
 
@@ -175,6 +186,18 @@ public class PanelCluster extends JPanel {
     /** Avanza un solo ciclo a mano (solo cuando el reloj no esta corriendo). */
     private void paso() {
         cluster.tick();
+        refresh();
+    }
+    
+        /** I05: abre la ventana para crear un proceso nuevo (con el reloj corriendo o en pausa). */
+    private void nuevoProceso() {
+        DialogosCreacion.nuevoProceso(javax.swing.SwingUtilities.getWindowAncestor(this), cluster);
+        refresh();
+    }
+
+    /** I05: abre la ventana para crear un buffer nuevo. */
+    private void nuevoBuffer() {
+        DialogosCreacion.nuevoBuffer(javax.swing.SwingUtilities.getWindowAncestor(this), cluster);
         refresh();
     }
 
