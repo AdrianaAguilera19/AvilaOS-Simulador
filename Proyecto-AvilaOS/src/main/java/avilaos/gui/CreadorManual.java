@@ -6,6 +6,10 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package avilaos.gui;
 
 import avilaos.enums.ProcessType;
@@ -39,9 +43,7 @@ public final class CreadorManual {
         if (cluster == null) {
             throw new IllegalArgumentException("Falta el cluster");
         }
-        if (capacity <= 0) {
-            throw new IllegalArgumentException("La capacidad debe ser mayor que 0");
-        }
+        Validador.rango(capacity, "La capacidad", 1, Validador.MAX_VALOR);
         if (!cluster.existsComputer(hostComputerId)) {
             throw new IllegalArgumentException("No existe el computador " + hostComputerId);
         }
@@ -65,9 +67,7 @@ public final class CreadorManual {
         if (cluster == null || d == null) {
             throw new IllegalArgumentException("Faltan los datos del proceso");
         }
-        if (d.name == null || d.name.isBlank()) {
-            throw new IllegalArgumentException("El proceso necesita un nombre");
-        }
+        String nombre = Validador.nombre(d.name, "El nombre del proceso");
         if (d.type == null) {
             throw new IllegalArgumentException("Elige el tipo de proceso");
         }
@@ -75,50 +75,39 @@ public final class CreadorManual {
         if (pc == null) {
             throw new IllegalArgumentException("No existe el computador " + d.computerId);
         }
-        if (d.priority <= 0) {
-            throw new IllegalArgumentException("La prioridad debe ser mayor que 0");
-        }
-        if (d.memorySize <= 0) {
-            throw new IllegalArgumentException("La memoria debe ser mayor que 0");
-        }
-        if (d.memorySize > pc.getRam().getTotalSize()) {
-            throw new IllegalArgumentException("El proceso necesita " + d.memorySize
-                    + " de memoria y la RAM de " + pc.getName() + " es de " + pc.getRam().getTotalSize());
-        }
-        if (d.deadline <= 0) {
-            throw new IllegalArgumentException("El deadline debe ser mayor que 0");
-        }
+        Validador.rango(d.priority, "La prioridad", 1, Validador.MAX_VALOR);
+        Validador.rango(d.memorySize, "La memoria", 1, pc.getRam().getTotalSize());
+        Validador.rango(d.deadline, "El deadline", 1, Validador.MAX_VALOR);
 
         long llegada = cluster.getCurrentCycle();
         PCB pcb;
         switch (d.type) {
             case CPU_BOUND:
-                if (d.cycles <= 0) {
-                    throw new IllegalArgumentException("Los ciclos de ejecucion deben ser mayores que 0");
-                }
-                pcb = ProcessFactory.createCpuBound(d.name.trim(), d.priority, d.memorySize, d.cycles,
+                Validador.rango(d.cycles, "Los ciclos de ejecucion", 1, Validador.MAX_VALOR);
+                pcb = ProcessFactory.createCpuBound(nombre, d.priority, d.memorySize, d.cycles,
                         d.deadline, d.computerId, llegada);
                 break;
             case IO_BOUND:
-                if (d.cycles <= 0 || d.ioInterval <= 0 || d.ioDuration <= 0) {
-                    throw new IllegalArgumentException(
-                            "Los ciclos, el intervalo de E/S y la duracion de E/S deben ser mayores que 0");
-                }
-                pcb = ProcessFactory.createIoBound(d.name.trim(), d.priority, d.memorySize, d.cycles,
+                Validador.rango(d.cycles, "Los ciclos de ejecucion", 1, Validador.MAX_VALOR);
+                Validador.rango(d.ioInterval, "El intervalo de E/S", 1, Validador.MAX_VALOR);
+                Validador.rango(d.ioDuration, "La duracion de la E/S", 1, Validador.MAX_VALOR);
+                pcb = ProcessFactory.createIoBound(nombre, d.priority, d.memorySize, d.cycles,
                         d.ioInterval, d.ioDuration, d.deadline, d.computerId, llegada);
                 break;
             default:   // PRODUCER o CONSUMER
-                if (d.cyclesPerItem <= 0 || d.itemsRequired <= 0) {
-                    throw new IllegalArgumentException(
-                            "Los ciclos por elemento y los elementos deben ser mayores que 0");
+                Validador.rango(d.cyclesPerItem, "Los ciclos por elemento", 1, Validador.MAX_VALOR);
+                Validador.rango(d.itemsRequired, "Los elementos a procesar", 1, Validador.MAX_VALOR);
+                if ((long) d.cyclesPerItem * d.itemsRequired > Validador.MAX_VALOR) {
+                    throw new IllegalArgumentException("Ciclos por elemento x elementos no puede pasar de "
+                            + Validador.MAX_VALOR + " instrucciones");
                 }
                 if (!cluster.getBufferManager().exists(d.bufferId)) {
                     throw new IllegalArgumentException("El buffer B" + d.bufferId + " no existe: crealo primero");
                 }
                 pcb = d.type == ProcessType.PRODUCER
-                        ? ProcessFactory.createProducer(d.name.trim(), d.priority, d.memorySize, d.bufferId,
+                        ? ProcessFactory.createProducer(nombre, d.priority, d.memorySize, d.bufferId,
                                 d.cyclesPerItem, d.itemsRequired, d.deadline, d.computerId, llegada)
-                        : ProcessFactory.createConsumer(d.name.trim(), d.priority, d.memorySize, d.bufferId,
+                        : ProcessFactory.createConsumer(nombre, d.priority, d.memorySize, d.bufferId,
                                 d.cyclesPerItem, d.itemsRequired, d.deadline, d.computerId, llegada);
                 // igual que ConfigLoader: el ejecutor se registra antes de entregar el proceso
                 pc.registerRunner(cluster.getBufferManager().createRunner(pcb));

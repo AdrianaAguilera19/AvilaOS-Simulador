@@ -201,18 +201,9 @@ public class PanelComputador extends Tema.PanelRedondeado {
         }
     }
 
-    /** Lee y valida el quantum escrito por el usuario. */
+        /** Lee y valida el quantum escrito por el usuario. */
     private int leerQuantum() {
-        int q;
-        try {
-            q = Integer.parseInt(txtQuantum.getText().trim());
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("El quantum debe ser un numero entero");
-        }
-        if (q <= 0) {
-            throw new IllegalArgumentException("El quantum debe ser mayor a 0");
-        }
-        return q;
+        return Validador.entero(txtQuantum.getText(), "El quantum", 1, Validador.MAX_VALOR);
     }
 
     private void mostrarMensaje(String texto, boolean error) {

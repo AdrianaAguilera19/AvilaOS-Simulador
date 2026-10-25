@@ -6,6 +6,10 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package avilaos.gui;
 
 import avilaos.datastructures.CustomLinkedList;
@@ -66,13 +70,9 @@ public final class DialogosCreacion {
         return cluster.getComputersSnapshot().get(combo.getSelectedIndex()).getId();
     }
 
-    /** Lee un entero; si no lo es, avisa con un mensaje que dice cual campo falla. */
+    /** Lee un entero entre 1 y el maximo; si no lo es, avisa con un mensaje que dice cual campo falla. */
     private static int entero(JTextField campo, String nombre) {
-        try {
-            return Integer.parseInt(campo.getText().trim());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(nombre + " debe ser un numero entero");
-        }
+        return Validador.entero(campo.getText(), nombre, 1, Validador.MAX_VALOR);
     }
 
     /** Base comun: formulario de filas "etiqueta + campo", mensaje de error y botones. */
@@ -151,7 +151,8 @@ public final class DialogosCreacion {
             try {
                 crear();
                 dispose();
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException | IllegalStateException | ArithmeticException ex) {
+                // cualquier dato malo se muestra en la ventana; nunca llega al simulador
                 mostrarError(ex.getMessage());
             }
         }
