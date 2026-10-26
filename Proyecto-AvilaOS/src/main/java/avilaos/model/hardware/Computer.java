@@ -56,6 +56,8 @@ public class Computer implements Clockable {
     private final Semaphore stateLock = new Semaphore(1);
     // La CPU de este computador
     private final CPU cpu = new CPU();
+        // P12: historial de utilizacion de la CPU (una muestra por ciclo) para la grafica de I08
+    private final UtilizationHistory utilizationHistory = new UtilizationHistory();
     private final RAM ram;
 
     // Colas propias de este computador
@@ -252,6 +254,8 @@ public class Computer implements Clockable {
                                 logEvent(next.getName() + " pasa a ejecución (" + currentPolicy.getAlgorithm() + ")");   // S11
             }
         }
+        // P12: al final del ciclo se anota cuanto lleva ocupada la CPU
+        utilizationHistory.record(cycle, cpu.getBusyCycles(), cpu.getTotalCycles());
     }
     
     /**
@@ -516,6 +520,10 @@ public class Computer implements Clockable {
     public SchedulingAlgorithm getAlgorithm() { return policy.getAlgorithm(); }
     public int getQuantum() { return quantum; }
     public CPU getCpu() { return cpu; }
+    
+    
+    /** P12: copia del historial de utilizacion de la CPU de este computador (una muestra por ciclo). */
+    public UtilizationSeries getUtilizationSeries() { return utilizationHistory.snapshot(); }
     public RAM getRam() { return ram; }
         public PCB getRunning() {
         stateLock.acquireUninterruptibly();
