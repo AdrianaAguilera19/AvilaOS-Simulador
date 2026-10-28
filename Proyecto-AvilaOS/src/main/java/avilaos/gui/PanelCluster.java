@@ -40,6 +40,7 @@ public class PanelCluster extends JPanel {
           private final PanelBuffers panelBuffers;   // S09: buffers y semaforos
         private final PanelLog panelLog;   // S11 / I06: log de eventos
     private int estado = DETENIDO;
+        private DialogoGrafica dialogoGrafica;   // I08: se crea la primera vez que se abre
 
     private final Tema.Pastilla pillCiclo =
             new Tema.Pastilla("CICLO 0", Tema.LAVANDA_SUAVE, Tema.LAVANDA);
@@ -113,6 +114,9 @@ public class PanelCluster extends JPanel {
         btnNuevoBuffer.addActionListener(e -> nuevoBuffer());
         JPanel fila3 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 4));
         fila3.setOpaque(false);
+                Tema.Boton btnGrafica = new Tema.Boton("Grafica de CPU", false);   // I08
+        btnGrafica.addActionListener(e -> abrirGrafica());
+        fila3.add(btnGrafica);
         fila3.add(btnNuevoBuffer);
         fila3.add(btnNuevoProceso);
         controles.add(fila3);
@@ -187,6 +191,14 @@ public class PanelCluster extends JPanel {
     private void paso() {
         cluster.tick();
         refresh();
+    }
+        /** I08: abre (o trae al frente) la ventana con la grafica comparativa de utilizacion de CPU. */
+    private void abrirGrafica() {
+        if (dialogoGrafica == null) {
+            dialogoGrafica = new DialogoGrafica(javax.swing.SwingUtilities.getWindowAncestor(this), cluster);
+        }
+        dialogoGrafica.setVisible(true);
+        dialogoGrafica.toFront();
     }
     
         /** I05: abre la ventana para crear un proceso nuevo (con el reloj corriendo o en pausa). */
