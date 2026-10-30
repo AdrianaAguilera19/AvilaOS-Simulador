@@ -327,6 +327,9 @@ public class Computer implements Clockable {
     private void terminateByDeadline(PCB p, boolean hasRam) {
         p.setState(ProcessState.TERMINATED);
         p.markDeadlineMissed();
+                if (p.getWaitingOn() != null) {
+            p.getWaitingOn().cancelWait(p);   // no dejarlo en la cola del semaforo
+        }
         finishedQueue.enqueue(p);
                 logEvent(p.getName() + " terminado por vencimiento de su deadline");   // S11
         if (hasRam) {

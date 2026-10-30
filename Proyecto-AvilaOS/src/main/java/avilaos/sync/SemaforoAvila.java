@@ -7,6 +7,7 @@ package avilaos.sync;
 import avilaos.datastructures.CustomQueue;
 import avilaos.enums.BlockReason;
 import avilaos.enums.ProcessState;
+import avilaos.interfaces.WaitCanceller;
 import avilaos.model.process.PCB;
 import java.util.concurrent.Semaphore;
 
@@ -15,7 +16,7 @@ import java.util.concurrent.Semaphore;
  * No llama al Kernel: semWait devuelve si el proceso se bloqueó
  * y semSignal devuelve el proceso despertado.
  */
-public class SemaforoAvila {
+public class SemaforoAvila implements WaitCanceller {
 
     private int value;
     private final BlockReason reason;
@@ -41,6 +42,7 @@ public class SemaforoAvila {
             if (value < 0) {
                 pcb.setState(ProcessState.BLOCKED);
                 pcb.setBlockReason(reason);
+                                pcb.setWaitingOn(this);
                 waiting.enqueue(pcb);
                 return true;
             }
@@ -55,7 +57,30 @@ public class SemaforoAvila {
         lock.acquireUninterruptibly();
         try {
             value++;
-            return (value <= 0) ? waiting.dequeue() : null;
+                        PCB woken = (value <= 0) ? waiting.dequeue() : null;
+            if (woken != null) {
+                woken.setWaitingOn(null);
+            }
+            return woken;
+        } finally {
+            lock.release();
+        }
+    }
+        /**
+     * Saca de la cola de espera a un proceso que murio bloqueado (por deadline) y deshace su
+     * semWait, para que un semSignal posterior no "despierte" a un proceso ya terminado.
+     * @return true si el proceso estaba esperando en este semaforo
+     */
+    @Override
+    public boolean cancelWait(PCB pcb) {
+        lock.acquireUninterruptibly();
+        try {
+            if (!waiting.remove(pcb)) {
+                return false;
+            }
+            value++;
+            pcb.setWaitingOn(null);
+            return true;
         } finally {
             lock.release();
         }
