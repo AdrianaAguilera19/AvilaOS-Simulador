@@ -117,6 +117,12 @@ public class PanelCluster extends JPanel {
                 Tema.Boton btnGrafica = new Tema.Boton("Grafica de CPU", false);   // I08
         btnGrafica.addActionListener(e -> abrirGrafica());
         fila3.add(btnGrafica);
+                Tema.Boton btnGuardarConfig = new Tema.Boton("Guardar config", false);   // I12
+        Tema.Boton btnCargarConfig = new Tema.Boton("Cargar config", false);
+        btnGuardarConfig.addActionListener(e -> ArchivosConfig.guardar(this, cluster));
+        btnCargarConfig.addActionListener(e -> cargarConfig());
+        fila3.add(btnGuardarConfig);
+        fila3.add(btnCargarConfig);
         fila3.add(btnNuevoBuffer);
         fila3.add(btnNuevoProceso);
         controles.add(fila3);
@@ -200,6 +206,42 @@ public class PanelCluster extends JPanel {
         dialogoGrafica.setVisible(true);
         dialogoGrafica.toFront();
     }
+    
+        /**
+     * Pide un archivo de configuracion y, si es valido, reemplaza este cluster por el nuevo
+     * en la misma ventana (el cluster actual se detiene).
+     */
+    private void cargarConfig() {
+        Cluster nuevo = ArchivosConfig.cargar(this);
+        if (nuevo == null) {
+            return;
+        }
+        javax.swing.JFrame ventana = (javax.swing.JFrame) javax.swing.SwingUtilities.getWindowAncestor(this);
+        if (ventana != null) {
+            mostrar(ventana, nuevo);
+        }
+    }
+
+    /**
+     * Muestra un cluster en la ventana. Si ya habia otro PanelCluster, lo detiene y cierra
+     * la ventana de la grafica antes de reemplazarlo.
+     * @param ventana ventana principal
+     * @param cluster cluster que se mostrara
+     */
+    public static void mostrar(javax.swing.JFrame ventana, Cluster cluster) {
+        if (ventana.getContentPane() instanceof PanelCluster) {
+            PanelCluster anterior = (PanelCluster) ventana.getContentPane();
+            anterior.shutdown();
+            if (anterior.dialogoGrafica != null) {
+                anterior.dialogoGrafica.dispose();
+            }
+        }
+        ventana.setContentPane(new PanelCluster(cluster));
+        ventana.revalidate();
+        ventana.repaint();
+    }
+    
+    
     
         /** I05: abre la ventana para crear un proceso nuevo (con el reloj corriendo o en pausa). */
     private void nuevoProceso() {

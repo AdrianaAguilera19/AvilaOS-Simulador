@@ -56,6 +56,7 @@ public class PCB {
     private BlockReason blockReason;
     private int associatedBufferId;
     private int blockedCycles;
+        private final int initialDeadline;   // deadline con el que se creo (el otro baja cada ciclo)
         private WaitCanceller waitingOn;   // cola (semaforo) donde esta bloqueado, o null
           private long blockedSinceCycle = NOT_BLOCKED;   // S10: ciclo en que se bloqueó en un semáforo
     
@@ -84,6 +85,7 @@ public class PCB {
         this.memorySize = memorySize;
         this.totalInstructions = totalInstructions;
         this.deadline = deadline;
+                this.initialDeadline = deadline;
         this.computerId = computerId;
         this.arrivalCycle = arrivalCycle;
 
@@ -192,6 +194,7 @@ public class PCB {
     public long getArrivalCycle() { return arrivalCycle; }
     public ProcessState getState() { return state; }
     public int getDeadline() { return deadline; }
+        public int getInitialDeadline() { return initialDeadline; }
     public int getRemainingTime() { return remainingTime; }
     public long getFirstExecutionCycle() { return firstExecutionCycle; }
     public int getProgramCounter() { return programCounter; }
