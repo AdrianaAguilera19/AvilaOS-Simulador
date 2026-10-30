@@ -4,6 +4,7 @@
  */
 package avilaos.model.process;
 import avilaos.enums.BlockReason;
+import avilaos.interfaces.WaitCanceller;
 import avilaos.enums.ProcessType;
 import avilaos.enums.ProcessState;
 
@@ -55,6 +56,7 @@ public class PCB {
     private BlockReason blockReason;
     private int associatedBufferId;
     private int blockedCycles;
+        private WaitCanceller waitingOn;   // cola (semaforo) donde esta bloqueado, o null
           private long blockedSinceCycle = NOT_BLOCKED;   // S10: ciclo en que se bloqueó en un semáforo
     
     public PCB(String name, ProcessType type, int priority, int memorySize,int totalInstructions, int deadline, int computerId, long arrivalCycle){
@@ -198,6 +200,7 @@ public class PCB {
           public long getBlockedSinceCycle() { return blockedSinceCycle; }
     public int getAssociatedBufferId() { return associatedBufferId; }
     public int getBlockedCycles() { return blockedCycles; }
+        public WaitCanceller getWaitingOn() { return waitingOn; }
     public int getIoInterval() { return ioInterval; }
     public int getIoDuration() { return ioDuration; }
     public int getCyclesPerItem() { return cyclesPerItem; }
@@ -208,6 +211,7 @@ public class PCB {
     // Setters
     public void setState(ProcessState state) { this.state = state; }
     public void setBlockReason(BlockReason blockReason) { this.blockReason = blockReason; }
+        public void setWaitingOn(WaitCanceller waitingOn) { this.waitingOn = waitingOn; }
           public void setBlockedSinceCycle(long cycle) { this.blockedSinceCycle = cycle; }
     public void setAssociatedBufferId(int associatedBufferId) { this.associatedBufferId = associatedBufferId; }
 
