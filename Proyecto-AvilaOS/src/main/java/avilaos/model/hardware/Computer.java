@@ -22,8 +22,8 @@ import avilaos.model.process.StepOutcome;
 import avilaos.enums.BlockReason;
 import avilaos.interfaces.ProcessWaker;
 import avilaos.interfaces.SemaphoreWaitRecorder;
-   import avilaos.log.EventLogger;
-   import avilaos.enums.StepKind;
+import avilaos.log.EventLogger;
+import avilaos.enums.StepKind;
 
 
 /**
@@ -570,6 +570,7 @@ public class Computer implements Clockable {
         }
     }
     public ExecutionMode getMode() { return cpu.getMode(); }
+    public long getKernelEntries() { return cpu.getKernelEntries(); }
 
         /**
      * Copia de las colas y de la CPU en un mismo instante (entre dos ciclos).

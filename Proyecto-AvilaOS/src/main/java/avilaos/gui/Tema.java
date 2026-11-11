@@ -53,12 +53,12 @@ public final class Tema {
     public static final Color TEXTO_SUAVE = new Color(0x9A919E);
 
     // Fuentes (Segoe UI viene en Windows; si no existe, Java usa otra parecida)
-    public static final Font TITULO = new Font("Segoe UI", Font.BOLD, 24);
-    public static final Font SUBTITULO = new Font("Segoe UI", Font.BOLD, 16);
-    public static final Font NORMAL = new Font("Segoe UI", Font.PLAIN, 13);
-    public static final Font NEGRITA = new Font("Segoe UI", Font.BOLD, 13);
-    public static final Font PEQUENA = new Font("Segoe UI", Font.BOLD, 11);
-    public static final Font NUMERO = new Font("Segoe UI", Font.BOLD, 22);
+    public static final Font TITULO = new Font("Segoe UI", Font.BOLD, 20);
+    public static final Font SUBTITULO = new Font("Segoe UI", Font.BOLD, 14);
+    public static final Font NORMAL = new Font("Segoe UI", Font.PLAIN, 12);
+    public static final Font NEGRITA = new Font("Segoe UI", Font.BOLD, 12);
+    public static final Font PEQUENA = new Font("Segoe UI", Font.BOLD, 10);
+    public static final Font NUMERO = new Font("Segoe UI", Font.BOLD, 18);
 
     /** Activa el suavizado de bordes para dibujar formas redondeadas. */
     private static Graphics2D suave(Graphics g) {
@@ -147,7 +147,7 @@ public final class Tema {
             setFocusPainted(false);
             setOpaque(false);
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
+            setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
         }
         
         /** Al deshabilitarlo se ve gris para que se note que no se puede usar. */
