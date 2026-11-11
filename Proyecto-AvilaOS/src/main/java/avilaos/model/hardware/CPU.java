@@ -25,6 +25,8 @@ public class CPU {
     // Para la utilizacion del procesador: ciclos ocupada / ciclos totales
     private volatile long busyCycles = 0;
     private volatile long totalCycles = 0;
+    // Cuantas veces ha entrado la CPU en modo kernel 
+    private volatile long kernelEntries = 0;
 
     /** Se llama una vez al empezar cada ciclo: cuenta el ciclo y vuelve al modo usuario. */
     public void startCycle() {
@@ -45,6 +47,8 @@ public class CPU {
         running.setState(ProcessState.RUNNING);
         running.markFirstExecution(cycle);   // guarda el primer ciclo en que uso la CPU
         cyclesInCpu = 0;
+        mode = ExecutionMode.S_O;   // despachar es codigo del SO
+        kernelEntries++;
     }
 
     /**
@@ -78,6 +82,7 @@ public class CPU {
             throw new IllegalStateException("No hay proceso en la CPU");
         }
         mode = ExecutionMode.S_O;
+        kernelEntries++;
         busyCycles++;
     }
 
@@ -87,6 +92,7 @@ public class CPU {
     public int getCyclesInCpu() { return cyclesInCpu; }
     public long getBusyCycles() { return busyCycles; }
     public long getTotalCycles() { return totalCycles; }
+    public long getKernelEntries() { return kernelEntries; }
 
     /** @return fraccion de ciclos en que la CPU estuvo ocupada (0.0 a 1.0). */
     public double getUtilization() {

@@ -57,10 +57,9 @@ public class PanelCluster extends JPanel {
     /** Arma la pantalla para un cluster ya creado (todavia sin iniciar). */
     public PanelCluster(Cluster cluster) {
         this.cluster = cluster;
-        setLayout(new BorderLayout(0, 18));
+        setLayout(new BorderLayout(0, 8));        
         setBackground(Tema.FONDO);
-        setBorder(BorderFactory.createEmptyBorder(22, 26, 26, 26));
-
+        setBorder(BorderFactory.createEmptyBorder(10, 16, 12, 16));
         // Encabezado: titulo a la izquierda, controles a la derecha
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
@@ -95,17 +94,14 @@ public class PanelCluster extends JPanel {
                 cluster.setCycleDurationMs(msDesdeVelocidad(sliderVelocidad.getValue()));
             }
         });
-        JPanel fila2 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-        fila2.setOpaque(false);
-        fila2.add(Tema.etiqueta("Velocidad", Tema.NEGRITA, Tema.TEXTO));
-        fila2.add(sliderVelocidad);
-        fila2.add(lblVelocidad);
+        fila1.add(Tema.etiqueta("Velocidad", Tema.NEGRITA, Tema.TEXTO));
+        fila1.add(sliderVelocidad);
+        fila1.add(lblVelocidad);
 
         JPanel controles = new JPanel();
         controles.setOpaque(false);
         controles.setLayout(new BoxLayout(controles, BoxLayout.Y_AXIS));
         controles.add(fila1);
-        controles.add(fila2);
         
         // I05: crear procesos y buffers con la simulacion en marcha
         Tema.Boton btnNuevoProceso = new Tema.Boton("Nuevo proceso", false);
@@ -138,23 +134,30 @@ public class PanelCluster extends JPanel {
             panels[i] = new PanelComputador(cluster, computers.get(i));
             center.add(panels[i]);
         }
-        // Con scroll: si la ventana es baja, las tarjetas no se cortan
-        javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(center);
-        scroll.setBorder(null);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
-        add(scroll, BorderLayout.CENTER);
+      
 
-        
-                  // Debajo de las tarjetas: buffers (S09) a la izquierda y log de eventos a la derecha
-          panelBuffers = new PanelBuffers(cluster);
-          panelLog = new PanelLog(cluster.getLogger());
-          JPanel sur = new JPanel(new GridLayout(1, 2, 18, 0));
-          sur.setOpaque(false);
-          sur.add(panelBuffers);
-          sur.add(panelLog);
-          add(sur, BorderLayout.SOUTH);
+        panelBuffers = new PanelBuffers(cluster);
+        panelLog = new PanelLog(cluster.getLogger());
+        JPanel sur = new JPanel(new GridLayout(1, 2, 18, 0));
+        sur.setOpaque(false);
+        sur.add(panelBuffers);
+        sur.add(panelLog);
+        sur.setPreferredSize(new java.awt.Dimension(10, 150));
+        java.awt.GridBagConstraints g = new java.awt.GridBagConstraints();
+        g.gridx = 0;
+        g.weightx = 1;
+        g.fill = java.awt.GridBagConstraints.BOTH;
+        JPanel contenido = new JPanel(new java.awt.GridBagLayout());
+        contenido.setOpaque(false);
+        g.gridy = 0;
+        g.weighty = 0.62;
+        g.insets = new java.awt.Insets(0, 0, 8, 0);
+        contenido.add(center, g);
+        g.gridy = 1;
+        g.weighty = 0.38;
+        g.insets = new java.awt.Insets(0, 0, 0, 0);
+        contenido.add(sur, g);
+        add(contenido, BorderLayout.CENTER);
         actualizarEstado();
         refreshTimer = new Timer(REFRESH_MS, e -> refresh());
         refreshTimer.start();
