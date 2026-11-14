@@ -1,11 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
@@ -192,7 +185,7 @@ public final class DialogosCreacion {
 
         private final JComboBox<ProcessType> cmbTipo = new JComboBox<>(ProcessType.values());
         private final JTextField txtNombre = campoTexto("");
-        private final JComboBox<String> cmbComputador;
+        // final JComboBox<String> cmbComputador;
         private final JTextField txtPrioridad = campoTexto("1");
         private final JTextField txtMemoria = campoTexto("10");
         private final JTextField txtDeadline = campoTexto("100");
@@ -209,7 +202,7 @@ public final class DialogosCreacion {
 
         DialogoProceso(Window owner, Cluster cluster) {
             super(owner, cluster, "Nuevo proceso", "Crear proceso");
-            cmbComputador = selectorComputadores(cluster);
+            //cmbComputador = selectorComputadores(cluster);
 
             CustomLinkedList<BoundedBuffer> buffers = cluster.getBufferManager().getSnapshot();
             idsBuffers = new int[buffers.size()];
@@ -222,7 +215,7 @@ public final class DialogosCreacion {
 
             agregarFila("Tipo", cmbTipo);
             agregarFila("Nombre", txtNombre);
-            agregarFila("Computador", cmbComputador);
+            //agregarFila("Computador", cmbComputador);
             agregarFila("Prioridad (1 = la mayor)", txtPrioridad);
             agregarFila("Memoria", txtMemoria);
             agregarFila("Deadline (ciclos)", txtDeadline);
@@ -261,7 +254,7 @@ public final class DialogosCreacion {
             ConfigDTO.ProcessConfig d = new ConfigDTO.ProcessConfig();
             d.type = (ProcessType) cmbTipo.getSelectedItem();
             d.name = txtNombre.getText();
-            d.computerId = idComputadorElegido(cluster, cmbComputador);
+            d.computerId = cluster.getComputersSnapshot().get(0).getId();
             d.priority = entero(txtPrioridad, "La prioridad");
             d.memorySize = entero(txtMemoria, "La memoria");
             d.deadline = entero(txtDeadline, "El deadline");

@@ -32,15 +32,12 @@ public final class DialogoInicio {
      */
     public static Cluster pedir() {
         while (true) {
-            JSpinner computadores = new JSpinner(new SpinnerNumberModel(2, Cluster.MIN_COMPUTERS, 4, 1));
             JSpinner ram = new JSpinner(new SpinnerNumberModel(512, 1, Validador.MAX_VALOR, 64));
             JSpinner cicloMs = new JSpinner(new SpinnerNumberModel(100, 1, 10_000, 10));
             JSpinner latencia = new JSpinner(new SpinnerNumberModel(3, 0, 1000, 1));
 
             JPanel campos = new JPanel(new GridLayout(0, 2, 8, 8));
-            campos.add(new JLabel("Numero de computadores (2 a 4)"));
-            campos.add(computadores);
-            campos.add(new JLabel("RAM de cada computador"));
+            campos.add(new JLabel("RAM del computador"));
             campos.add(ram);
             campos.add(new JLabel("Duracion de un ciclo (ms)"));
             campos.add(cicloMs);
@@ -51,8 +48,7 @@ public final class DialogoInicio {
                     JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null,
                     new Object[] {CREAR, CARGAR, SALIR}, CREAR);
             if (opcion == 0) {
-                return crear((Integer) computadores.getValue(), (Integer) ram.getValue(),
-                        (Integer) cicloMs.getValue(), (Integer) latencia.getValue());
+                return crear((Integer) ram.getValue(), (Integer) cicloMs.getValue(), (Integer) latencia.getValue());
             }
             if (opcion == 1) {
                 Cluster cargado = ArchivosConfig.cargar(null);
@@ -65,13 +61,12 @@ public final class DialogoInicio {
         }
     }
 
-    /** Arma un cluster con n computadores iguales (PC1, PC2, ...), todos en FCFS al empezar. */
-    static Cluster crear(int computadores, int ram, int cicloMs, int latencia) {
+    /** Arma el cluster con su unico computador (PC1) en FCFS al empezar. */
+
+    static Cluster crear(int ram, int cicloMs, int latencia) {
         Cluster cluster = new Cluster(cicloMs, latencia);
-        for (int i = 1; i <= computadores; i++) {
-            cluster.addComputer("PC" + i,
-                    PolicyFactory.create(SchedulingAlgorithm.FCFS, avilaos.model.hardware.Computer.DEFAULT_QUANTUM), ram);
-        }
+        cluster.addComputer("PC1",
+                PolicyFactory.create(SchedulingAlgorithm.FCFS, avilaos.model.hardware.Computer.DEFAULT_QUANTUM), ram);
         return cluster;
     }
 }

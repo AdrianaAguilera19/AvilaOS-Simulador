@@ -87,8 +87,8 @@ public class ConfigDTO {
         if (networkLatency < 0) {
             throw new ConfigException("La latencia de red no puede ser negativa");
         }
-        if (computers == null || computers.length < Cluster.MIN_COMPUTERS) {
-            throw new ConfigException("Se necesitan al menos " + Cluster.MIN_COMPUTERS + " computadores");
+        if (computers == null || computers.length != Cluster.COMPUTERS) {
+            throw new ConfigException("El sistema trabaja con exactamente " + Cluster.COMPUTERS + " computador");
         }
         // Cada computador
         for (int i = 0; i < computers.length; i++) {
