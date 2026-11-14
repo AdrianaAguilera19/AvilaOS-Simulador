@@ -24,6 +24,8 @@ import avilaos.interfaces.ProcessWaker;
 import avilaos.interfaces.SemaphoreWaitRecorder;
 import avilaos.log.EventLogger;
 import avilaos.enums.StepKind;
+import avilaos.interfaces.MemoryAdmission;
+import avilaos.os.midterm.FifoMemoryAdmission;
 
 
 /**
@@ -60,6 +62,7 @@ public class Computer implements Clockable {
         // P12: historial de utilizacion de la CPU (una muestra por ciclo) para la grafica de I08
     private final UtilizationHistory utilizationHistory = new UtilizationHistory();
     private final RAM ram;
+    private volatile MemoryAdmission admission = new FifoMemoryAdmission();
 
     // Colas propias de este computador
     private final CustomQueue<PCB> newQueue = new CustomQueue<>();      // procesos que acaban de llegar
@@ -338,17 +341,11 @@ public class Computer implements Clockable {
     }
     
     /**
-     * Pasa de nuevos a listos los procesos que quepan en la RAM, en orden de llegada.
-     * Si el primero no cabe, se detiene y espera: asi un proceso grande no se queda
-     * esperando para siempre porque otros mas chicos le pasan por delante.
+     * Pasa de nuevos a listos los procesos que quepan en la RAM. La logica
+     * esta en MemoryAdmission (por defecto FifoMemoryAdmission).
      */
     private void admitFromNewQueue(SchedulingPolicy currentPolicy) {
-        PCB p;
-        while ((p = newQueue.peek()) != null && ram.allocate(p.getMemorySize())) {
-            newQueue.dequeue();
-            p.setState(ProcessState.READY);
-            currentPolicy.addToReady(readyQueue, p);
-        }
+        admission.admit(newQueue, readyQueue, ram, currentPolicy);
     }
 
     /**
