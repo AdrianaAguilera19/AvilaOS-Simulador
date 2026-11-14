@@ -19,7 +19,7 @@ import avilaos.sync.BufferManager;
  * @author Antonella Ruiz
  */
 public class Cluster implements ProcessWaker {
-    public static final int MIN_COMPUTERS=2;
+    public static final int COMPUTERS=1;  //Trabajamos ahora con una sola instancia 
     
     //un unico reloj para todo el sistema
     private final GlobalClock clock;
@@ -74,6 +74,9 @@ public class Cluster implements ProcessWaker {
      * @return la computadora creada 
      */
     public Computer addComputer(String name, SchedulingPolicy policy, int ramSize) {
+        if (computers.size() >= COMPUTERS) {
+            throw new IllegalStateException("El sistema trabaja con un solo computador");
+        }
         Computer c = new Computer(computers.size() + 1, name, policy, ramSize);
         c.setWaker(this);   // S05: para despertar procesos de otros computadores
                 c.setLogger(logger);   // S11: todos escriben en el mismo log
@@ -167,11 +170,11 @@ public class Cluster implements ProcessWaker {
         c.setQuantum(quantum);
     }
     /** 
-     * Enciende el reloj. Exige tener al menos MIN_COMPUTERS computadoras
+     * Enciende el reloj. Exige tener al menos COMPUTERS computadoras
      */
     public void start() {
-        if (computers.size() < MIN_COMPUTERS) {
-            throw new IllegalStateException("Se necesitan al menos " + MIN_COMPUTERS + " computadoras");
+        if (computers.size() != COMPUTERS) {
+            throw new IllegalStateException("Se necesita exactamente " + COMPUTERS + " computador");
         }
         clock.start();
     }
