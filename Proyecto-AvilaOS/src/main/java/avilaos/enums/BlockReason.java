@@ -14,5 +14,7 @@ public enum BlockReason {
     MUTEX, /** espera en la cola del semaforo mutex de un buffer */
     EMPTY_SEMAPHORE, /** espera en el semaf de elementos de un buffer vacio (consumer)*/
     FULL_SEMAPHORE, /** espera en el semaf de espacios de un buffer lleno (producer)*/
-    NETWORK_LATENCY /** espera los ciclos de latencia de red al acceder a un buffer de otro computador*/
+    NETWORK_LATENCY, /** espera los ciclos de latencia de red al acceder a un buffer de otro computador*/
+    DISK_IO /** espera a que el disco atienda su solicitud de E/S (operacion de archivo o de swap)*/
 }
+
