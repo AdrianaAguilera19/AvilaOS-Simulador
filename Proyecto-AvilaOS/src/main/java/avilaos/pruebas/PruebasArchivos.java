@@ -9,7 +9,8 @@ import avilaos.enums.Permission;
 import avilaos.os.filesystem.FileNode;
 import avilaos.datastructures.DynamicArray;
 import avilaos.os.filesystem.FileTree;
-
+import avilaos.enums.PathError;
+import avilaos.os.filesystem.PathResult;
 /**
  * Pruebas del sistema de archivos del P2. Se ejecuta como programa (main) y
  * termina con "TODAS LAS PRUEBAS PASARON" o con el numero de fallas (codigo de salida 1).
@@ -22,6 +23,9 @@ public class PruebasArchivos {
     public static void main(String[] args) {
         modeloDeNodo();
         arbolDeArchivos();
+        modeloDeNodo();
+        arbolDeArchivos();
+        busquedaPorRuta();
 
         System.out.println();
         if (fallas == 0) {
@@ -144,5 +148,49 @@ public class PruebasArchivos {
         check(falla(() -> arbol.add(boot, FileNode.directory("z", "admin", Permission.PUBLIC))), "no agrega dentro de un archivo");
         check(falla(() -> arbol.add(raiz, FileNode.directory("sistema", "admin", Permission.PUBLIC))), "no repite un nombre en el mismo directorio");
         check(arbol.countNodes() == 9, "los intentos rechazados no cambian el arbol");
+    }
+    
+    // ------------------------------------------------------------------ F03
+
+    private static void busquedaPorRuta() {
+        titulo("F03 - Busqueda por ruta absoluta");
+        FileTree arbol = new FileTree("admin");
+        FileNode sistema = FileNode.directory("sistema", "admin", Permission.PUBLIC);
+        FileNode boot = FileNode.file("boot.bin", "admin", Permission.PRIVATE, 0, 4);
+        FileNode usuarios = FileNode.directory("usuarios", "admin", Permission.PUBLIC);
+        FileNode user1 = FileNode.directory("user1", "user1", Permission.PUBLIC);
+        FileNode notas = FileNode.file("notas.txt", "user1", Permission.PUBLIC, 10, 3);
+        arbol.add(arbol.getRoot(), sistema);
+        arbol.add(sistema, boot);
+        arbol.add(arbol.getRoot(), usuarios);
+        arbol.add(usuarios, user1);
+        arbol.add(user1, notas);
+
+        check(arbol.find("/").getNode() == arbol.getRoot(), "la ruta / devuelve la raiz");
+        check(arbol.find("/sistema").getNode() == sistema, "encuentra un directorio");
+        check(arbol.find("/sistema/boot.bin").getNode() == boot, "encuentra un archivo por su ruta");
+        check(arbol.find("/usuarios/user1/notas.txt").getNode() == notas, "encuentra un archivo a varios niveles");
+        check(arbol.find("  /sistema/boot.bin  ").getNode() == boot, "ignora espacios al principio y al final");
+        check(arbol.find("/sistema/boot.bin").isFound() && arbol.find("/sistema/boot.bin").getMessage().isEmpty(),
+                "una ruta encontrada no trae mensaje de error");
+
+        PathResult r = arbol.find("/sistema/otro.bin");
+        check(!r.isFound() && r.getNode() == null && r.getError() == PathError.NOT_FOUND, "ruta inexistente: NOT_FOUND");
+        check(r.getMessage().contains("otro.bin"), "el mensaje dice cual parte no existe");
+        check(arbol.find("/nada/boot.bin").getError() == PathError.NOT_FOUND, "falla si un directorio del camino no existe");
+        check(arbol.find("/sistema/boot.bin/x").getError() == PathError.NOT_A_DIRECTORY, "no se puede pasar por un archivo");
+        check(arbol.find(null).getError() == PathError.EMPTY && arbol.find("   ").getError() == PathError.EMPTY,
+                "ruta nula o vacia: EMPTY");
+        check(arbol.find("sistema/boot.bin").getError() == PathError.NOT_ABSOLUTE, "ruta sin / al inicio: NOT_ABSOLUTE");
+        check(arbol.find("/sistema//boot.bin").getError() == PathError.EMPTY_PART, "doble barra: EMPTY_PART");
+        check(arbol.find("/sistema/").getError() == PathError.EMPTY_PART, "barra al final: EMPTY_PART");
+        check(arbol.find("/sistema/ /x").getError() == PathError.EMPTY_PART, "una parte solo con espacios: EMPTY_PART");
+        check(arbol.find("/Sistema").getError() == PathError.NOT_FOUND, "los nombres distinguen mayusculas");
+
+        check(arbol.pathOf(arbol.getRoot()).equals("/"), "pathOf de la raiz es /");
+        check(arbol.pathOf(boot).equals("/sistema/boot.bin"), "pathOf arma la ruta de un archivo");
+        check(arbol.pathOf(notas).equals("/usuarios/user1/notas.txt"), "pathOf arma la ruta a varios niveles");
+        check(arbol.find(arbol.pathOf(notas)).getNode() == notas, "find(pathOf(nodo)) devuelve el mismo nodo");
+        check(arbol.pathOf(FileNode.directory("suelto", "admin", Permission.PUBLIC)) == null, "pathOf de un nodo de afuera es null");
     }
 }

@@ -5,6 +5,7 @@
 package avilaos.os.filesystem;
 
 import avilaos.datastructures.DynamicArray;
+import avilaos.enums.PathError;
 
 /**
  * Arbol jerarquico del sistema de archivos, con raiz «/».
@@ -78,5 +79,63 @@ public class FileTree {
             total += all.get(i).getBlockCount();
         }
         return total;
+    }
+    
+    /**
+     * Busca un nodo por su ruta absoluta (por ejemplo «/sistema/boot.bin»).
+     * Una ruta vacia, mal formada o inexistente no lanza error: devuelve un resultado con el motivo.
+     */
+    public PathResult find(String path) {
+        if (path == null || path.trim().isEmpty()) {
+            return PathResult.failed(PathError.EMPTY, "La ruta esta vacia");
+        }
+        String clean = path.trim();
+        if (clean.charAt(0) != '/') {
+            return PathResult.failed(PathError.NOT_ABSOLUTE, "La ruta «" + clean + "» debe empezar con /");
+        }
+        if (clean.length() == 1) {
+            return PathResult.found(root);
+        }
+        FileNode current = root;
+        int start = 1;
+        while (start <= clean.length()) {
+            int end = clean.indexOf('/', start);
+            if (end < 0) {
+                end = clean.length();
+            }
+            String part = clean.substring(start, end).trim();
+            if (part.isEmpty()) {
+                return PathResult.failed(PathError.EMPTY_PART, "La ruta «" + clean + "» tiene una parte vacia");
+            }
+            if (!current.isDirectory()) {
+                return PathResult.failed(PathError.NOT_A_DIRECTORY,
+                        "«" + current.getName() + "» es un archivo y no tiene contenido");
+            }
+            FileNode child = current.findChild(part);
+            if (child == null) {
+                return PathResult.failed(PathError.NOT_FOUND,
+                        "No existe «" + part + "» en «" + current.getName() + "»");
+            }
+            current = child;
+            start = end + 1;
+        }
+        return PathResult.found(current);
+    }
+
+    /** Ruta absoluta de un nodo del arbol («/» para la raiz). Devuelve null si el nodo no es del arbol. */
+    public String pathOf(FileNode node) {
+        if (!contains(node)) {
+            return null;
+        }
+        if (node == root) {
+            return FileNode.ROOT_NAME;
+        }
+        String path = "";
+        FileNode current = node;
+        while (current != root) {
+            path = "/" + current.getName() + path;
+            current = current.getParent();
+        }
+        return path;
     }
 }
