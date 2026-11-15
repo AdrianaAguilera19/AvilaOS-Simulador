@@ -7,6 +7,8 @@ package avilaos.pruebas;
 import avilaos.enums.NodeType;
 import avilaos.enums.Permission;
 import avilaos.os.filesystem.FileNode;
+import avilaos.datastructures.DynamicArray;
+import avilaos.os.filesystem.FileTree;
 
 /**
  * Pruebas del sistema de archivos del P2. Se ejecuta como programa (main) y
@@ -19,6 +21,7 @@ public class PruebasArchivos {
 
     public static void main(String[] args) {
         modeloDeNodo();
+        arbolDeArchivos();
 
         System.out.println();
         if (fallas == 0) {
@@ -94,5 +97,52 @@ public class PruebasArchivos {
 
         check(sistema.removeChild(boot) && boot.getParent() == null && sistema.getChildCount() == 1, "quita un hijo y queda sin padre");
         check(!sistema.removeChild(boot), "no quita dos veces el mismo hijo");
+    }
+    
+    // ------------------------------------------------------------------ F02
+
+    private static void arbolDeArchivos() {
+        titulo("F02 - FileTree (arbol con raiz /)");
+        FileTree arbol = new FileTree("admin");
+        FileNode raiz = arbol.getRoot();
+        check(raiz.getName().equals("/") && raiz.isRoot() && arbol.countNodes() == 1, "el arbol nuevo solo tiene la raiz /");
+
+        FileNode sistema = FileNode.directory("sistema", "admin", Permission.PUBLIC);
+        FileNode boot = FileNode.file("boot.bin", "admin", Permission.PRIVATE, 0, 4);
+        FileNode usuarios = FileNode.directory("usuarios", "admin", Permission.PUBLIC);
+        FileNode user1 = FileNode.directory("user1", "user1", Permission.PUBLIC);
+        FileNode notas = FileNode.file("notas.txt", "user1", Permission.PUBLIC, 10, 3);
+        FileNode img = FileNode.file("img1.png", "user1", Permission.PRIVATE, 20, 5);
+        FileNode user2 = FileNode.directory("user2", "user2", Permission.PRIVATE);
+        FileNode datos = FileNode.file("data.csv", "user2", Permission.PRIVATE, 30, 2);
+        arbol.add(raiz, sistema);
+        arbol.add(sistema, boot);
+        arbol.add(raiz, usuarios);
+        arbol.add(usuarios, user1);
+        arbol.add(user1, notas);
+        arbol.add(user1, img);
+        arbol.add(usuarios, user2);
+        arbol.add(user2, datos);
+
+        check(arbol.countNodes() == 9, "arma el arbol de ejemplo: 9 nodos");
+        check(arbol.countFiles() == 4 && arbol.countDirectories() == 5, "4 archivos y 5 directorios");
+        check(arbol.usedBlocks() == 14, "los archivos ocupan 14 bloques en total");
+        check(notas.getParent() == user1 && user1.getParent() == usuarios && usuarios.getParent() == raiz, "cada nodo conoce a su padre");
+        check(raiz.getChildCount() == 2 && usuarios.getChildCount() == 2, "los directorios conocen a sus hijos");
+
+        DynamicArray<FileNode> orden = arbol.allNodes();
+        check(orden.size() == 9 && orden.get(0) == raiz, "el recorrido empieza en la raiz");
+        check(orden.indexOf(usuarios) < orden.indexOf(user1) && orden.indexOf(user1) < orden.indexOf(notas),
+                "cada directorio va antes que su contenido (preorden)");
+        check(orden.get(1) == sistema && orden.get(2) == boot, "los hermanos salen en el orden en que se agregaron");
+
+        check(arbol.contains(datos) && arbol.contains(raiz), "reconoce los nodos del arbol");
+        FileNode suelto = FileNode.directory("suelto", "admin", Permission.PUBLIC);
+        check(!arbol.contains(suelto) && !arbol.contains(null), "no reconoce un nodo que no cuelga de la raiz");
+        check(falla(() -> arbol.add(suelto, FileNode.directory("x", "admin", Permission.PUBLIC))), "no agrega dentro de un directorio de afuera");
+        check(falla(() -> arbol.add(null, FileNode.directory("y", "admin", Permission.PUBLIC))), "no agrega si el destino es nulo");
+        check(falla(() -> arbol.add(boot, FileNode.directory("z", "admin", Permission.PUBLIC))), "no agrega dentro de un archivo");
+        check(falla(() -> arbol.add(raiz, FileNode.directory("sistema", "admin", Permission.PUBLIC))), "no repite un nombre en el mismo directorio");
+        check(arbol.countNodes() == 9, "los intentos rechazados no cambian el arbol");
     }
 }
