@@ -5,6 +5,7 @@
 package avilaos.model.process;
 
 import avilaos.enums.ProcessType;
+import avilaos.enums.IOOperationType;
 
 /**
  *Crea procesos de cada tipo con los parametros que le corresponden
@@ -87,6 +88,42 @@ public class ProcessFactory {
         return createBufferProcess(ProcessType.CONSUMER, name, priority, memorySize, bufferId, cyclesPerItem, itemsRequired, deadline, computerId, arrivalCycle);
     }
     
+    /**
+     * Crea un proceso de E/S sobre un archivo (CREATE, READ, UPDATE o DELETE).
+     * Lo usan la GUI y la carga del JSON; valida todo y avisa con IllegalArgumentException.
+     * @param operationText operacion en texto ("create", "READ"...); la de SUSPEND/REACTIVATE no se pide por aqui
+     * @param targetPath ruta absoluta, por ejemplo /usuarios/notas.txt
+     * @param fileSizeBlocks tamano en bloques (mayor que 0 en CREATE; 0 en las demas)
+     * @param newName nombre nuevo para UPDATE (puede ser null)
+     */
+    public static PCB createDiskIo(String name, int priority, int memorySize, int instructions, int deadline,
+            int computerId, long arrivalCycle, String operationText, String targetPath, int fileSizeBlocks, String newName) {
+        IOOperationType operation = IOOperationType.fromText(operationText);
+        if (operation == null || !operation.isFileOperation()) {
+            throw new IllegalArgumentException("Operacion no valida: " + operationText + " (use CREATE, READ, UPDATE o DELETE)");
+        }
+        checkPath(targetPath);
+        PCB p = new PCB(name, ProcessType.CPU_BOUND, priority, memorySize, instructions, deadline, computerId, arrivalCycle);
+        p.setDiskOperation(operation, targetPath, fileSizeBlocks, newName);
+        return p;
+    }
+
+    /** La ruta debe ser absoluta, sin partes vacias, y no puede ser la raiz. */
+    private static void checkPath(String path) {
+        if (path == null || path.isBlank()) {
+            throw new IllegalArgumentException("Falta la ruta del archivo");
+        }
+        String clean = path.trim();
+        if (!clean.startsWith("/")) {
+            throw new IllegalArgumentException("La ruta debe empezar con /: " + clean);
+        }
+        if (clean.equals("/")) {
+            throw new IllegalArgumentException("La operacion no puede ser sobre la raiz");
+        }
+        if (clean.endsWith("/") || clean.contains("//")) {
+            throw new IllegalArgumentException("La ruta tiene partes vacias: " + clean);
+        }
+    }
     
     /**
      * Arma un productor o consumidor
