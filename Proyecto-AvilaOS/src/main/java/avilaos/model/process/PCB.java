@@ -7,6 +7,7 @@ import avilaos.enums.BlockReason;
 import avilaos.interfaces.WaitCanceller;
 import avilaos.enums.ProcessType;
 import avilaos.enums.ProcessState;
+import avilaos.enums.IOOperationType;
 
 
 /**
@@ -14,6 +15,12 @@ import avilaos.enums.ProcessState;
  * @author Antonella Ruiz
  */
 public class PCB {
+    
+    // Operacion de E/S sobre un archivo (P2)
+    private IOOperationType diskOperation;
+    private String targetPath;
+    private int fileSizeBlocks;
+    private String newName;
     
     public static final int NO_BUFFER = -1;
     public static final long NOT_STARTED = -1;
@@ -180,6 +187,39 @@ public class PCB {
         this.cyclesPerItem = cyclesPerItem;
         this.itemsRequired = itemsRequired;
     }
+    /**
+     * Guarda la operacion de E/S sobre un archivo que debe hacer este proceso.
+     * @param operation CREATE, READ, UPDATE o DELETE
+     * @param targetPath ruta absoluta del archivo o directorio
+     * @param fileSizeBlocks tamano en bloques (obligatorio y mayor que 0 solo en CREATE)
+     * @param newName nombre nuevo (solo UPDATE; puede ser null)
+     */
+    public void setDiskOperation(IOOperationType operation, String targetPath, int fileSizeBlocks, String newName) {
+        if (diskOperation != null) {
+            throw new IllegalStateException("El proceso ya tiene una operacion de E/S");
+        }
+        if (operation == null || !operation.isFileOperation()) {
+            throw new IllegalArgumentException("La operacion debe ser CREATE, READ, UPDATE o DELETE");
+        }
+        if (targetPath == null || targetPath.isBlank()) {
+            throw new IllegalArgumentException("Falta la ruta del archivo");
+        }
+        if (fileSizeBlocks < 0) {
+            throw new IllegalArgumentException("El tamano en bloques no puede ser negativo");
+        }
+        if (operation == IOOperationType.CREATE && fileSizeBlocks == 0) {
+            throw new IllegalArgumentException("Para crear un archivo hay que indicar un tamano mayor que 0");
+        }
+        boolean hasNewName = newName != null && !newName.isBlank();
+        if (hasNewName && operation != IOOperationType.UPDATE) {
+            throw new IllegalArgumentException("Solo UPDATE lleva nombre nuevo");
+        }
+        this.diskOperation = operation;
+        this.targetPath = targetPath.trim();
+        this.fileSizeBlocks = fileSizeBlocks;
+        this.newName = hasNewName ? newName.trim() : null;
+    }
+    
     
     public void markDeadlineMissed(){this.deadlineMissed=true;}
     
@@ -194,21 +234,26 @@ public class PCB {
     public long getArrivalCycle() { return arrivalCycle; }
     public ProcessState getState() { return state; }
     public int getDeadline() { return deadline; }
-        public int getInitialDeadline() { return initialDeadline; }
+    public int getInitialDeadline() { return initialDeadline; }
     public int getRemainingTime() { return remainingTime; }
     public long getFirstExecutionCycle() { return firstExecutionCycle; }
     public int getProgramCounter() { return programCounter; }
     public int getMemoryAddressRegister() { return memoryAddressRegister; }
     public BlockReason getBlockReason() { return blockReason; }
-          public long getBlockedSinceCycle() { return blockedSinceCycle; }
+    public long getBlockedSinceCycle() { return blockedSinceCycle; }
     public int getAssociatedBufferId() { return associatedBufferId; }
     public int getBlockedCycles() { return blockedCycles; }
-        public WaitCanceller getWaitingOn() { return waitingOn; }
+    public WaitCanceller getWaitingOn() { return waitingOn; }
     public int getIoInterval() { return ioInterval; }
     public int getIoDuration() { return ioDuration; }
     public int getCyclesPerItem() { return cyclesPerItem; }
     public int getItemsRequired() { return itemsRequired; }
     public boolean isDeadlineMissed() { return deadlineMissed; }
+    public boolean hasDiskOperation() { return diskOperation != null; }
+    public IOOperationType getDiskOperation() { return diskOperation; }
+    public String getTargetPath() { return targetPath; }
+    public int getFileSizeBlocks() { return fileSizeBlocks; }
+    public String getNewName() { return newName; }
     
     
     // Setters
