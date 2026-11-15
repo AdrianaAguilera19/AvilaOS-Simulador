@@ -77,6 +77,25 @@ public class ChainAllocator {
         return chain;
     }
 
+    /**
+     * Igual que allocate, pero en vez de devolver null explica por que se rechazo.
+     * Si no hay bloques libres suficientes el disco no cambia.
+     */
+    public AllocationResult request(int count, String owner) {
+        if (count < 1) {
+            return AllocationResult.rejected("El archivo debe tener al menos 1 bloque");
+        }
+        int free = freeBlocks();
+        if (count > free) {
+            return AllocationResult.rejected("No hay bloques libres suficientes: se piden " + count + " y hay " + free);
+        }
+        BlockChain chain = allocate(count, owner);
+        if (chain == null) {
+            return AllocationResult.rejected("No hay bloques libres suficientes: se piden " + count);
+        }
+        return AllocationResult.granted(chain);
+    }
+    
     /** Recorre la cadena que empieza en ese bloque y devuelve sus bloques en orden (vacia si esta libre). */
     public BlockChain chainOf(int firstBlock) {
         BlockChain chain = new BlockChain();
