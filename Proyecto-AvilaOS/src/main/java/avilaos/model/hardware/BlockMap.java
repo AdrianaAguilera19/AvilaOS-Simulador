@@ -102,6 +102,27 @@ public class BlockMap {
             lock.release();
         }
     }
+        /**
+     * Cambia el dueno de un bloque ocupado (por ejemplo, cuando se renombra el archivo que lo usa).
+     * El uso y el enlace al bloque siguiente no cambian.
+     * @return false si el bloque esta libre
+     */
+    public boolean setOwner(int block, String owner) {
+        checkRange(block);
+        if (owner == null || owner.trim().isEmpty()) {
+            throw new IllegalArgumentException("El bloque necesita un dueno");
+        }
+        lock.acquireUninterruptibly();
+        try {
+            if (uses[block] == BlockUse.FREE) {
+                return false;
+            }
+            owners[block] = owner.trim();
+            return true;
+        } finally {
+            lock.release();
+        }
+    }
 
     /** Libera el bloque. Devuelve false si ya estaba libre. */
     public boolean release(int block) {
