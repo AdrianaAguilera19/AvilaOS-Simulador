@@ -11,6 +11,8 @@ import avilaos.os.disk.DiskRequest;
 
 /**
  * Contrato de toda politica de planificacion de disco (FIFO, SSTF, SCAN, C-SCAN y las extra).
+ * El planificador solo conoce esta interfaz: agregar una politica nueva es crear una clase
+ * que la implemente y una constante en el enum, sin tocar el planificador.
  * @author Antonella Ruiz
  */
 public interface DiskPolicy {
@@ -27,4 +29,14 @@ public interface DiskPolicy {
      * @return posicion (en pending) de la solicitud elegida, o -1 si no hay ninguna
      */
     int selectNext(DynamicArray<DiskRequest> pending, int headPosition, HeadDirection direction);
+
+    /**
+     * Bloques que recorre el cabezal para llegar al destino con esta politica. Por defecto es la
+     * distancia directa; SCAN y C-SCAN la alargan cuando deben ir hasta el extremo del disco antes
+     * de invertir el sentido o de saltar al 0.
+     * @param totalBlocks tamano del disco (el ultimo bloque es totalBlocks - 1)
+     */
+    default int travelDistance(int headPosition, HeadDirection direction, int targetBlock, int totalBlocks) {
+        return Math.abs(targetBlock - headPosition);
+    }
 }
