@@ -1,11 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package avilaos.os.disk;
 
 import avilaos.enums.DiskSchedulingPolicy;
 import avilaos.enums.HeadDirection;
+import avilaos.interfaces.DiskDecisionListener;
 import avilaos.interfaces.DiskPolicy;
 import avilaos.interfaces.ProcessWaker;
 import avilaos.os.disk.policy.DiskPolicyFactory;
@@ -22,6 +19,7 @@ public class DiskScheduler {
     private final DiskQueue queue;
     private final ProcessWaker waker;
     private volatile DiskPolicy policy;
+    private volatile DiskDecisionListener decisions;
 
     public DiskScheduler(DiskQueue queue, DiskPolicy policy, ProcessWaker waker) {
         if (queue == null || waker == null) {
@@ -30,6 +28,11 @@ public class DiskScheduler {
         this.queue = queue;
         this.waker = waker;
         setPolicy(policy);
+    }
+
+    /** Quien se entera de cada decision (atencion, cambio de politica, salto de C-SCAN); null para ninguno. */
+    public void setDecisionListener(DiskDecisionListener listener) {
+        this.decisions = listener;
     }
 
     public DiskQueue getQueue() { return queue; }
@@ -52,14 +55,27 @@ public class DiskScheduler {
      * @return la politica que estaba activa
      */
     public DiskPolicy changePolicy(DiskPolicy newPolicy) {
+        return changePolicy(newPolicy, 0);
+    }
+
+    /** Igual que changePolicy, avisando al registro de decisiones con el ciclo en que ocurre el cambio. */
+    public DiskPolicy changePolicy(DiskPolicy newPolicy, long cycle) {
         DiskPolicy old = policy;
         setPolicy(newPolicy);
+        DiskDecisionListener listener = decisions;
+        if (listener != null) {
+            listener.onPolicyChange(cycle, old.getType(), newPolicy.getType(), queue.size());
+        }
         return old;
     }
 
     /** Igual que changePolicy, pero crea la politica desde el valor del enum (selector de la GUI). */
     public DiskPolicy changePolicy(DiskSchedulingPolicy type) {
-        return changePolicy(DiskPolicyFactory.create(type));
+        return changePolicy(DiskPolicyFactory.create(type), 0);
+    }
+
+    public DiskPolicy changePolicy(DiskSchedulingPolicy type, long cycle) {
+        return changePolicy(DiskPolicyFactory.create(type), cycle);
     }
 
     /**
@@ -75,6 +91,11 @@ public class DiskScheduler {
      * @return la solicitud elegida, o null si el disco esta ocupado o no hay nada pendiente
      */
     public DiskRequest startNext(int headPosition, HeadDirection direction) {
+        return startNext(0, headPosition, direction);
+    }
+
+    /** Igual que startNext, registrando la decision con el ciclo de reloj en que se toma. */
+    public DiskRequest startNext(long cycle, int headPosition, HeadDirection direction) {
         if (queue.isBusy() || queue.isEmpty()) {
             return null;
         }
@@ -85,6 +106,14 @@ public class DiskScheduler {
         }
         DiskRequest request = queue.startService(index);
         request.markServed(active.getType());
+        DiskDecisionListener listener = decisions;
+        if (listener != null) {
+            // C-SCAN siempre sube: si la elegida esta por debajo del cabezal, hubo salto del final al 0
+            if (active.getType() == DiskSchedulingPolicy.C_SCAN && request.getTargetBlock() < headPosition) {
+                listener.onWrapAround(cycle, headPosition, request.getTargetBlock());
+            }
+            listener.onAttend(cycle, request, headPosition, active.getType());
+        }
         return request;
     }
 
