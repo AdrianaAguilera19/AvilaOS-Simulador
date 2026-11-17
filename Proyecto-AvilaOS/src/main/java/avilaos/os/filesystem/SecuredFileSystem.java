@@ -44,7 +44,7 @@ public class SecuredFileSystem {
         return fs.createDirectory(path, who == null ? null : who.getName(), permission);
     }
 
-    public FsResult createFile(ActiveUser who, String directoryPath, String name, int sizeBlocks, Permission permission) {
+        public FsResult createFile(ActiveUser who, String directoryPath, String name, int sizeBlocks, Permission permission) {
         PathResult dir = fs.getTree().find(directoryPath);
         if (!dir.isFound()) {
             return FsResult.rejected(dir.getMessage());
@@ -53,13 +53,7 @@ public class SecuredFileSystem {
         if (!d.isAllowed()) {
             return denied(d);
         }
-        FileOpResult r = creator.create(directoryPath, name, sizeBlocks, who.getName(), who.getMode(), permission);
-        if (!r.isDone()) {
-            return FsResult.rejected(r.getMessage());
-        }
-        FileNode file = r.getNode();
-        return FsResult.done("Archivo «" + fs.getTree().pathOf(file) + "» creado (" + sizeBlocks + " bloques)",
-                file, null, sizeBlocks);
+        return creator.create(directoryPath, name, sizeBlocks, who.getName(), who.getMode(), permission);
     }
 
     public FsResult read(ActiveUser who, String path) {

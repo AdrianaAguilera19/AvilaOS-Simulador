@@ -29,50 +29,50 @@ public class FileCreator {
      * Crea un archivo de sizeBlocks bloques dentro del directorio indicado por su ruta.
      * El dueno del archivo es quien lo crea.
      */
-    public FileOpResult create(String directoryPath, String name, int sizeBlocks,
+    public FsResult create(String directoryPath, String name, int sizeBlocks,
             String user, UserMode mode, Permission permission) {
         if (user == null || user.trim().isEmpty()) {
-            return FileOpResult.rejected("Falta el usuario que crea el archivo");
+            return FsResult.rejected("Falta el usuario que crea el archivo");
         }
         if (mode == null) {
-            return FileOpResult.rejected("Falta el modo de usuario");
+            return FsResult.rejected("Falta el modo de usuario");
         }
         if (permission == null) {
-            return FileOpResult.rejected("Falta el permiso del archivo");
+            return FsResult.rejected("Falta el permiso del archivo");
         }
         if (name == null || name.trim().isEmpty()) {
-            return FileOpResult.rejected("El nombre del archivo esta vacio");
+            return FsResult.rejected("El nombre del archivo esta vacio");
         }
         if (name.indexOf('/') >= 0) {
-            return FileOpResult.rejected("El nombre «" + name.trim() + "» no puede contener «/»");
+            return FsResult.rejected("El nombre «" + name.trim() + "» no puede contener «/»");
         }
         if (sizeBlocks < 1) {
-            return FileOpResult.rejected("El archivo debe tener al menos 1 bloque");
+            return FsResult.rejected("El archivo debe tener al menos 1 bloque");
         }
         PathResult found = tree.find(directoryPath);
         if (!found.isFound()) {
-            return FileOpResult.rejected(found.getMessage());
+            return FsResult.rejected(found.getMessage());
         }
         FileNode directory = found.getNode();
         if (!directory.isDirectory()) {
-            return FileOpResult.rejected("«" + directory.getName() + "» es un archivo, no un directorio");
+            return FsResult.rejected("«" + directory.getName() + "» es un archivo, no un directorio");
         }
         if (!mode.isAdmin() && !directory.getOwner().equals(user.trim())) {
-            return FileOpResult.rejected("El usuario «" + user.trim() + "» solo puede crear en sus propios directorios; «"
+            return FsResult.rejected("El usuario «" + user.trim() + "» solo puede crear en sus propios directorios; «"
                     + directory.getName() + "» es de «" + directory.getOwner() + "»");
         }
         String cleanName = name.trim();
         if (directory.findChild(cleanName) != null) {
-            return FileOpResult.rejected("Ya existe «" + cleanName + "» en «" + directory.getName() + "»");
+            return FsResult.rejected("Ya existe «" + cleanName + "» en «" + directory.getName() + "»");
         }
         String fullPath = tree.pathOf(directory);
         fullPath = FileNode.ROOT_NAME.equals(fullPath) ? "/" + cleanName : fullPath + "/" + cleanName;
         AllocationResult blocks = allocator.request(sizeBlocks, fullPath);
         if (!blocks.isGranted()) {
-            return FileOpResult.rejected(blocks.getMessage());
+            return FsResult.rejected(blocks.getMessage());
         }
         FileNode file = FileNode.file(cleanName, user.trim(), permission, blocks.getChain().first(), sizeBlocks);
         tree.add(directory, file);
-        return FileOpResult.done(file);
+        return FsResult.done("Archivo «" + fullPath + "» creado (" + sizeBlocks + " bloques)", file, null, sizeBlocks);
     }
 }
