@@ -4,12 +4,18 @@
  */
 package avilaos.os.disk;
 
+import avilaos.enums.DiskSchedulingPolicy;
 import avilaos.enums.HeadDirection;
 import avilaos.interfaces.DiskPolicy;
 import avilaos.interfaces.ProcessWaker;
+import avilaos.os.disk.policy.DiskPolicyFactory;
+import avilaos.os.disk.policy.PolicyRun;
+import avilaos.os.disk.policy.PolicySimulator;
 
 /**
- * Planificador de disco
+ * Planificador de disco: toma solicitudes de la cola segun la politica activa y, cuando el
+ * disco termina una, despierta al proceso que la pidio (pasa a Listo).
+ * Solo conoce la interfaz DiskPolicy, no ninguna politica concreta.
  * @author Antonella Ruiz
  */
 public class DiskScheduler {
@@ -36,6 +42,32 @@ public class DiskScheduler {
             throw new IllegalArgumentException("Falta la politica de disco");
         }
         this.policy = policy;
+    }
+
+    /**
+     * Cambio de politica en caliente, con solicitudes pendientes. La cola y el cabezal no se tocan:
+     * ninguna solicitud se pierde ni se duplica, y la proxima eleccion ya usa la nueva politica
+     * con la direccion que lleve el cabezal en ese momento. La que esta en servicio termina con
+     * la politica con la que se eligio.
+     * @return la politica que estaba activa
+     */
+    public DiskPolicy changePolicy(DiskPolicy newPolicy) {
+        DiskPolicy old = policy;
+        setPolicy(newPolicy);
+        return old;
+    }
+
+    /** Igual que changePolicy, pero crea la politica desde el valor del enum (selector de la GUI). */
+    public DiskPolicy changePolicy(DiskSchedulingPolicy type) {
+        return changePolicy(DiskPolicyFactory.create(type));
+    }
+
+    /**
+     * Como quedaria la cola pendiente con la politica activa: orden de atencion y desplazamiento.
+     * No modifica la cola ni el disco; la GUI la usa para mostrar el reordenamiento tras un cambio.
+     */
+    public PolicyRun plan(int headPosition, HeadDirection direction, int totalBlocks) {
+        return PolicySimulator.run(policy, queue.pendingSnapshot(), headPosition, direction, totalBlocks);
     }
 
     /**
