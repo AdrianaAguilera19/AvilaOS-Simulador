@@ -8,7 +8,7 @@ import avilaos.interfaces.WaitCanceller;
 import avilaos.enums.ProcessType;
 import avilaos.enums.ProcessState;
 import avilaos.enums.IOOperationType;
-
+import avilaos.enums.UserMode;
 
 /**
  *Representa el bloque de control del proceso
@@ -21,6 +21,10 @@ public class PCB {
     private String targetPath;
     private int fileSizeBlocks;
     private String newName;
+    
+    // Quien pide la operacion y con que modo (P2). Se fija una sola vez al crear el proceso de E/S.
+    private String userName;
+    private UserMode userMode;
     
     public static final int NO_BUFFER = -1;
     public static final long NOT_STARTED = -1;
@@ -220,6 +224,30 @@ public class PCB {
         this.newName = hasNewName ? newName.trim() : null;
     }
     
+    /**
+     * Fija quien pide la operacion de E/S y con que modo (ADMIN o USER). Se hace una sola vez, al crear
+     * el proceso: el modo no cambia aunque despues cambie el usuario activo de la interfaz. Con estos
+     * dos datos el sistema de archivos decide si la operacion esta permitida leyendo solo el PCB.
+     */
+    public void setUser(String userName, UserMode userMode) {
+        if (this.userMode != null) {
+            throw new IllegalStateException("El proceso ya tiene usuario y modo");
+        }
+        checkUser(userName, userMode);
+        this.userName = userName.trim();
+        this.userMode = userMode;
+    }
+
+    /** Valida el usuario y el modo sin crear nada (la fabrica lo usa antes de construir el PCB). */
+    static void checkUser(String userName, UserMode userMode) {
+        if (userName == null || userName.isBlank()) {
+            throw new IllegalArgumentException("Falta el nombre del usuario que pide la operacion");
+        }
+        if (userMode == null) {
+            throw new IllegalArgumentException("Falta el modo de usuario (ADMIN o USER)");
+        }
+    }
+    
     
     public void markDeadlineMissed(){this.deadlineMissed=true;}
     
@@ -254,6 +282,11 @@ public class PCB {
     public String getTargetPath() { return targetPath; }
     public int getFileSizeBlocks() { return fileSizeBlocks; }
     public String getNewName() { return newName; }
+    /** Usuario que pide la operacion, o null si el proceso no lo tiene. */
+    public String getUserName() { return userName; }
+    /** Modo del usuario (ADMIN o USER), o null si el proceso no lo tiene. */
+    public UserMode getUserMode() { return userMode; }
+    public boolean hasUser() { return userMode != null; }
     
     
     // Setters

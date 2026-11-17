@@ -6,6 +6,7 @@ package avilaos.model.process;
 
 import avilaos.enums.ProcessType;
 import avilaos.enums.IOOperationType;
+import avilaos.enums.UserMode;
 
 /**
  *Crea procesos de cada tipo con los parametros que le corresponden
@@ -107,7 +108,24 @@ public class ProcessFactory {
         p.setDiskOperation(operation, targetPath, fileSizeBlocks, newName);
         return p;
     }
-
+    
+    
+    /**
+     * Igual que createDiskIo, pero el proceso nace con el usuario que pide la operacion y su modo
+     * (ADMIN o USER). Es la que deben usar la GUI y el JSON: asi el sistema de archivos puede rechazar
+     * por permiso leyendo solo el PCB. Si el usuario o el modo faltan se rechaza sin crear el proceso.
+     */
+    public static PCB createDiskIo(String name, int priority, int memorySize, int instructions, int deadline,
+            int computerId, long arrivalCycle, String operationText, String targetPath, int fileSizeBlocks, String newName,
+            String userName, UserMode userMode) {
+        PCB.checkUser(userName, userMode);
+        PCB p = createDiskIo(name, priority, memorySize, instructions, deadline, computerId, arrivalCycle,
+                operationText, targetPath, fileSizeBlocks, newName);
+        p.setUser(userName, userMode);
+        return p;
+    }
+    
+    
     /** La ruta debe ser absoluta, sin partes vacias, y no puede ser la raiz. */
     private static void checkPath(String path) {
         if (path == null || path.isBlank()) {
