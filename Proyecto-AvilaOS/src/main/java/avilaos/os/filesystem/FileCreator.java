@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package avilaos.os.filesystem;
 
 import avilaos.enums.Permission;
@@ -31,6 +27,18 @@ public class FileCreator {
      */
     public FsResult create(String directoryPath, String name, int sizeBlocks,
             String user, UserMode mode, Permission permission) {
+        return create(directoryPath, name, sizeBlocks, user, mode, permission, FileNode.NO_CREATOR);
+    }
+
+    /**
+     * Igual que la anterior, pero el archivo guarda el ID del proceso que lo crea (F14).
+     * Si el ID no es valido se rechaza antes de reservar bloques.
+     */
+    public FsResult create(String directoryPath, String name, int sizeBlocks,
+            String user, UserMode mode, Permission permission, int creatorProcessId) {
+        if (creatorProcessId < FileNode.NO_CREATOR) {
+            return FsResult.rejected("El ID del proceso creador no es valido: " + creatorProcessId);
+        }
         if (user == null || user.trim().isEmpty()) {
             return FsResult.rejected("Falta el usuario que crea el archivo");
         }
@@ -71,7 +79,8 @@ public class FileCreator {
         if (!blocks.isGranted()) {
             return FsResult.rejected(blocks.getMessage());
         }
-        FileNode file = FileNode.file(cleanName, user.trim(), permission, blocks.getChain().first(), sizeBlocks);
+        FileNode file = FileNode.file(cleanName, user.trim(), permission, blocks.getChain().first(), sizeBlocks,
+                creatorProcessId);
         tree.add(directory, file);
         return FsResult.done("Archivo «" + fullPath + "» creado (" + sizeBlocks + " bloques)", file, null, sizeBlocks);
     }

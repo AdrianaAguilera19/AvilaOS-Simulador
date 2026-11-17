@@ -1,9 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package avilaos.os.filesystem;
-
 
 import avilaos.datastructures.TreeNode;
 import avilaos.enums.NodeType;
@@ -19,6 +14,8 @@ public class FileNode {
     /** Valor de firstBlock cuando el nodo no tiene bloques (los directorios). */
     public static final int NO_BLOCK = -1;
     public static final String ROOT_NAME = "/";
+    /** Valor de creatorProcessId cuando no se sabe que proceso creo el nodo (carga inicial, raiz). */
+    public static final int NO_CREATOR = -1;
 
     private String name;
     private final NodeType type;
@@ -26,34 +23,56 @@ public class FileNode {
     private Permission permission;
     private final int firstBlock;
     private final int blockCount;
+    private final int creatorProcessId;
+    private final int color;
     private final TreeNode<FileNode> position;
 
-    private FileNode(String name, NodeType type, String owner, Permission permission, int firstBlock, int blockCount) {
+    private FileNode(String name, NodeType type, String owner, Permission permission, int firstBlock, int blockCount,
+            int creatorProcessId, int color) {
         this.name = name;
         this.type = type;
         this.owner = owner;
         this.permission = permission;
         this.firstBlock = firstBlock;
         this.blockCount = blockCount;
+        this.creatorProcessId = creatorProcessId;
+        this.color = color;
         this.position = new TreeNode<>(this);
     }
 
     /** Crea la raiz «/» del sistema de archivos. */
     public static FileNode root(String owner) {
         checkOwner(owner);
-        return new FileNode(ROOT_NAME, NodeType.DIRECTORY, owner.trim(), Permission.PUBLIC, NO_BLOCK, 0);
+        return new FileNode(ROOT_NAME, NodeType.DIRECTORY, owner.trim(), Permission.PUBLIC, NO_BLOCK, 0,
+                NO_CREATOR, FileColorPalette.NO_COLOR);
     }
 
-    /** Crea un directorio (sin bloques). */
+    /** Crea un directorio (sin bloques y sin proceso creador conocido). */
     public static FileNode directory(String name, String owner, Permission permission) {
+        return directory(name, owner, permission, NO_CREATOR);
+    }
+
+    /** Crea un directorio indicando el proceso que lo creo (o NO_CREATOR). Los directorios no tienen color. */
+    public static FileNode directory(String name, String owner, Permission permission, int creatorProcessId) {
         checkName(name);
         checkOwner(owner);
         checkPermission(permission);
-        return new FileNode(name.trim(), NodeType.DIRECTORY, owner.trim(), permission, NO_BLOCK, 0);
+        checkCreator(creatorProcessId);
+        return new FileNode(name.trim(), NodeType.DIRECTORY, owner.trim(), permission, NO_BLOCK, 0,
+                creatorProcessId, FileColorPalette.NO_COLOR);
     }
 
-    /** Crea un archivo con su primer bloque y su cantidad de bloques (al menos 1). */
+    /** Crea un archivo con su primer bloque y su cantidad de bloques (al menos 1), sin proceso creador conocido. */
     public static FileNode file(String name, String owner, Permission permission, int firstBlock, int blockCount) {
+        return file(name, owner, permission, firstBlock, blockCount, NO_CREATOR);
+    }
+
+    /**
+     * Crea un archivo guardando el ID del proceso que lo creo (o NO_CREATOR). El color se asigna aqui,
+     * a partir del primer bloque, y no cambia mientras el archivo exista.
+     */
+    public static FileNode file(String name, String owner, Permission permission, int firstBlock, int blockCount,
+            int creatorProcessId) {
         checkName(name);
         checkOwner(owner);
         checkPermission(permission);
@@ -63,7 +82,16 @@ public class FileNode {
         if (blockCount < 1) {
             throw new IllegalArgumentException("Un archivo ocupa al menos un bloque");
         }
-        return new FileNode(name.trim(), NodeType.FILE, owner.trim(), permission, firstBlock, blockCount);
+        checkCreator(creatorProcessId);
+        return new FileNode(name.trim(), NodeType.FILE, owner.trim(), permission, firstBlock, blockCount,
+                creatorProcessId, FileColorPalette.colorFor(firstBlock));
+    }
+
+    /** El proceso creador es un ID de proceso (0 o mas) o NO_CREATOR. */
+    static void checkCreator(int creatorProcessId) {
+        if (creatorProcessId < NO_CREATOR) {
+            throw new IllegalArgumentException("El ID del proceso creador no es valido: " + creatorProcessId);
+        }
     }
 
     private static void checkName(String name) {
@@ -98,6 +126,17 @@ public class FileNode {
     public int getFirstBlock() { return firstBlock; }
 
     public int getBlockCount() { return blockCount; }
+
+    /** ID del proceso que creo el nodo, o NO_CREATOR si no se conoce. */
+    public int getCreatorProcessId() { return creatorProcessId; }
+
+    public boolean hasCreator() { return creatorProcessId != NO_CREATOR; }
+
+    /** Color 0xRRGGBB del archivo (el mismo en el mapa y en la tabla), o NO_COLOR en los directorios. */
+    public int getColor() { return color; }
+
+    /** Color en texto «#RRGGBB», o vacio si no tiene. */
+    public String getColorHex() { return FileColorPalette.toHex(color); }
 
     public boolean isDirectory() { return type == NodeType.DIRECTORY; }
 
