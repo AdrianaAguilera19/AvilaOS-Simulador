@@ -33,14 +33,14 @@ public class PanelProcesos extends JPanel {
 
     private static final int[] ANCHOS = {45, 95, 100, 200, 60, 85, 75, 50, 50, 85, 150, 70};
     private static final String[] COLUMNAS = {"ID", "Nombre", "Tipo", "Estado", "Prio.",
-        "Deadline", "Quedan", "PC", "MAR", "Memoria", "Bloqueo", "Buffer"};
+        "Deadline", "Quedan", "PC", "MAR", "Memoria", "Bloqueo"};
 
     private static final int COL_ESTADO = 3;
     // Columnas que se muestran en la version compacta: ID, Nombre, Estado, Prio., Quedan, PC, Bloqueo
     private static final int[] COLS_COMPACTA = {0, 1, 3, 4, 6, 7, 10};
     private static final int[] COLS_COMPLETA = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
     // Columnas numericas: se centran
-    private static final boolean[] CENTRADA = {true, false, false, false, true, true, true, true, true, true, false, true};
+    private static final boolean[] CENTRADA = {true, false, false, false, true, true, true, true, true, true, false};
 
     private final Computer computer;
     private final int[] cols;            // indices (de COLUMNAS) que muestra esta tabla
@@ -289,13 +289,11 @@ public class PanelProcesos extends JPanel {
                 case 7: return p.getProgramCounter();
                 case 8: return p.getMemoryAddressRegister();
                 case 9: return p.getMemorySize();
-                case 10:
-                    return p.getState() == ProcessState.BLOCKED
-                            ? p.getBlockReason().toString().toLowerCase().replace('_', ' ') : "-";
                 default:
-                    return (p.getType() == ProcessType.PRODUCER || p.getType() == ProcessType.CONSUMER)
-                            ? "B" + p.getAssociatedBufferId() : "-";
-            }
+                 return p.getState() == ProcessState.BLOCKED
+                         ? p.getBlockReason().toString().toLowerCase().replace('_', ' ') : "-";
         }
+                    }
+
     }
 }
