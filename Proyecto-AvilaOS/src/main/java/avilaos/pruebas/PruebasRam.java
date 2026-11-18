@@ -4,7 +4,6 @@
  */
 package avilaos.pruebas;
 
-import avilaos.datastructures.CustomLinkedList;
 import avilaos.datastructures.CustomQueue;
 import avilaos.enums.ProcessState;
 import avilaos.model.hardware.Cluster;
@@ -13,15 +12,14 @@ import avilaos.model.hardware.RAM;
 import avilaos.model.process.PCB;
 import avilaos.model.process.ProcessFactory;
 import avilaos.scheduler.FCFSPolicy;
-import avilaos.sync.BoundedBuffer;
 
 /**
  * I10: pruebas reproducibles de la RAM y de la admision de procesos.
  * Es una prueba que se queda en el repositorio: se ejecuta como programa (main) y termina
  * con "TODAS LAS PRUEBAS PASARON" o con la lista de fallas (codigo de salida 1).
  * Cubre: la clase RAM sola, falta de memoria, admision posterior, liberacion al terminar o
- * al vencer el deadline, revision de la cola de nuevos (orden de llegada), memoria de los
- * buffers y de los procesos bloqueados, y que la cuenta de memoria siempre cuadre.
+ * al vencer el deadline, revision de la cola de nuevos (orden de llegada), memoria
+ * de los procesos bloqueados, y que la cuenta de memoria siempre cuadre.
  * Todo corre con ticks manuales del cluster, asi que da siempre el mismo resultado.
  */
 public class PruebasRam {
@@ -40,7 +38,6 @@ public class PruebasRam {
         liberacionPorDeadline();
         deadlineEnLaColaDeNuevos();
         procesoMasGrandeQueLaRam();
-        memoriaDeLosBuffers();
         procesoBloqueadoConservaSuMemoria();
         cuentaDeMemoriaSiempreCuadra();
 
@@ -67,11 +64,10 @@ public class PruebasRam {
         System.out.println("--- " + texto + " ---");
     }
 
-    /** Cluster de 2 computadores FCFS; PC1 tiene la RAM indicada. */
+    /** Cluster de un computador FCFS con la RAM indicada. */
     private static Cluster cluster(int ramPc1) {
         Cluster c = new Cluster(10, 0);
         c.addComputer("PC1", new FCFSPolicy(), ramPc1);
-        c.addComputer("PC2", new FCFSPolicy(), 200);
         return c;
     }
 
@@ -117,18 +113,6 @@ public class PruebasRam {
         CustomQueue<PCB> bloqueados = pc.getBlockedSnapshot();
         for (int i = 0; i < bloqueados.size(); i++) {
             suma += bloqueados.get(i).getMemorySize();
-        }
-        return suma;
-    }
-
-    /** Memoria reservada por los buffers que viven en ese computador. */
-    private static int memoriaDeBuffers(Cluster c, Computer pc) {
-        int suma = 0;
-        CustomLinkedList<BoundedBuffer> buffers = c.getBufferManager().getSnapshot();
-        for (int i = 0; i < buffers.size(); i++) {
-            if (buffers.get(i).getHostComputerId() == pc.getId()) {
-                suma += buffers.get(i).getReservedMemory();
-            }
         }
         return suma;
     }
@@ -226,7 +210,6 @@ public class PruebasRam {
         c.tick();
         check(a.getState() != ProcessState.NEW && enNuevos(pc) == 0, "en el primer ciclo sale de la cola de nuevos");
         check(pc.getRam().getUsedSize() == 30, "ocupa su memoria (30 de 100)");
-        check(c.getComputer(2).getRam().getUsedSize() == 0, "la RAM del otro computador no cambia");
         check(hastaTerminar(c, a), "el proceso termina");
         check(pc.getRam().getUsedSize() == 0, "al terminar libera toda su memoria");
     }
@@ -344,76 +327,40 @@ public class PruebasRam {
         check(hastaTerminar(c, justo) && pc.getRam().getUsedSize() == 0, "termina y libera todo");
     }
 
-    /** Los buffers reservan memoria en su anfitrion y compiten con los procesos. */
-    private static void memoriaDeLosBuffers() {
-        titulo("Memoria de los buffers");
-        Cluster c = cluster(30);
-        Computer pc = c.getComputer(1);
-        BoundedBuffer b = c.getBufferManager().createBuffer(20, 1);
-        check(pc.getRam().getUsedSize() == 20 && b.getReservedMemory() == 20,
-                "un buffer de capacidad 20 reserva 20 de la RAM de su anfitrion");
-        check(c.getComputer(2).getRam().getUsedSize() == 0, "la RAM del otro computador no se toca");
-        PCB m = proceso(c, "M", 15, 2, 500);
-        ticks(c, 4);
-        check(m.getState() == ProcessState.NEW, "un proceso de 15 espera: el buffer deja solo 10 libres");
-        try {
-            c.getBufferManager().createBuffer(11, 1);
-            check(false, "buffer que no cabe");
-        } catch (IllegalStateException e) {
-            check(true, "un buffer que no cabe en la RAM libre se rechaza");
-        }
-        check(pc.getRam().getUsedSize() == 20 && c.getBufferManager().getSnapshot().size() == 1,
-                "el buffer rechazado no deja memoria reservada ni queda registrado");
-        check(c.getBufferManager().removeBuffer(b.getId()) && pc.getRam().getUsedSize() == 0,
-                "al eliminar el buffer se libera su memoria");
-        c.tick();
-        check(m.getState() != ProcessState.NEW && pc.getRam().getUsedSize() == 15,
-                "al liberarse la memoria del buffer, el proceso en espera entra");
-    }
-
-    /** Un proceso bloqueado sigue ocupando su RAM (no se libera hasta que termina). */
+    /** Un proceso bloqueado (por E/S) sigue ocupando su RAM: no se libera hasta que termina. */
     private static void procesoBloqueadoConservaSuMemoria() {
         titulo("Un proceso bloqueado conserva su memoria");
         Cluster c = cluster(50);
         Computer pc = c.getComputer(1);
-        BoundedBuffer b = c.getBufferManager().createBuffer(5, 1);   // reserva 5
-        PCB cons = ProcessFactory.createConsumer("C", 1, 15, b.getId(), 1, 1, 5000, 1, 0);
-        pc.registerRunner(c.getBufferManager().createRunner(cons));
-        c.submit(cons);
-        ticks(c, 12);
-        check(cons.getState() == ProcessState.BLOCKED, "el consumidor queda bloqueado (buffer vacio)");
-        check(pc.getRam().getUsedSize() == 20, "sigue ocupando sus 15 (mas 5 del buffer = 20)");
+        PCB io = ProcessFactory.createIoBound("B", 1, 15, 4, 1, 12, 5000, 1, c.getCurrentCycle());
+        c.submit(io);
+        ticks(c, 4);
+        check(io.getState() == ProcessState.BLOCKED, "el proceso de E/S queda bloqueado esperando el disco");
+        check(pc.getRam().getUsedSize() == 15, "sigue ocupando sus 15");
         PCB grande = proceso(c, "G", 40, 2, 500);
         ticks(c, 3);
         check(grande.getState() == ProcessState.NEW, "un proceso de 40 no entra: el bloqueado aun tiene su memoria");
-        PCB prod = ProcessFactory.createProducer("P", 1, 10, b.getId(), 1, 1, 5000, 1, c.getCurrentCycle());
-        pc.registerRunner(c.getBufferManager().createRunner(prod));
-        c.submit(prod);
-        check(hastaTerminar(c, cons) && hastaTerminar(c, prod), "al llegar un productor, los dos terminan");
+        check(hastaTerminar(c, io), "el proceso de E/S termina");
         check(hastaTerminar(c, grande), "el proceso grande entra y termina cuando se libera la memoria");
-        check(pc.getRam().getUsedSize() == 5, "al final solo queda la memoria del buffer (5)");
+        check(pc.getRam().getUsedSize() == 0, "al final la RAM queda libre");
     }
 
-    /** En cada ciclo de un escenario mixto, la RAM usada = procesos con memoria + buffers. */
+    /** En cada ciclo de un escenario mixto, la RAM usada = memoria de los procesos que la tienen. */
     private static void cuentaDeMemoriaSiempreCuadra() {
         titulo("La cuenta de memoria cuadra en todos los ciclos");
         Cluster c = cluster(60);
         Computer pc1 = c.getComputer(1);
-        Computer pc2 = c.getComputer(2);
-        BoundedBuffer b = c.getBufferManager().createBuffer(10, 1);   // 10 en PC1
         PCB[] todos = new PCB[8];
         todos[0] = proceso(c, "A", 20, 6, 500);
         todos[1] = proceso(c, "B", 25, 4, 500);
         todos[2] = proceso(c, "C", 15, 3, 500);
         todos[3] = proceso(c, "D", 30, 5, 12);       // algunos vencen
-        PCB prod = ProcessFactory.createProducer("P", 1, 10, b.getId(), 1, 4, 5000, 1, 0);
-        PCB cons = ProcessFactory.createConsumer("K", 1, 10, b.getId(), 1, 4, 5000, 2, 0);
-        pc1.registerRunner(c.getBufferManager().createRunner(prod));
-        c.submit(prod);
-        pc2.registerRunner(c.getBufferManager().createRunner(cons));
-        c.submit(cons);
-        todos[4] = prod;
-        todos[5] = cons;
+        PCB io1 = ProcessFactory.createIoBound("I1", 1, 10, 4, 2, 3, 5000, 1, 0);
+        PCB io2 = ProcessFactory.createIoBound("I2", 1, 10, 4, 1, 2, 5000, 1, 0);
+        c.submit(io1);
+        c.submit(io2);
+        todos[4] = io1;
+        todos[5] = io2;
         todos[6] = proceso(c, "E", 10, 2, 500);
         todos[7] = proceso(c, "F", 55, 2, 500);      // casi toda la RAM: tendra que esperar mucho
         boolean cuadro = true;
@@ -422,9 +369,7 @@ public class PruebasRam {
         boolean todosTerminaron = false;
         for (int i = 1; i <= MAX_CICLOS && !todosTerminaron; i++) {
             c.tick();
-            int esperado1 = memoriaDeProcesos(pc1) + memoriaDeBuffers(c, pc1);
-            int esperado2 = memoriaDeProcesos(pc2) + memoriaDeBuffers(c, pc2);
-            if (pc1.getRam().getUsedSize() != esperado1 || pc2.getRam().getUsedSize() != esperado2) {
+            if (pc1.getRam().getUsedSize() != memoriaDeProcesos(pc1)) {
                 cuadro = false;
                 if (cicloMalo < 0) {
                     cicloMalo = i;
@@ -441,11 +386,10 @@ public class PruebasRam {
             }
         }
         check(todosTerminaron, "los 8 procesos terminan (unos bien y otros por deadline)");
-        check(cuadro, "en todos los ciclos: RAM usada = memoria de los procesos + de los buffers"
+        check(cuadro, "en todos los ciclos: RAM usada = memoria de los procesos"
                 + (cicloMalo > 0 ? " (fallo en el ciclo " + cicloMalo + ")" : ""));
         check(nuncaSePaso, "la RAM usada nunca supero el total");
-        check(pc1.getRam().getUsedSize() == 10 && pc2.getRam().getUsedSize() == 0,
-                "al final solo queda la memoria del buffer en PC1 (10) y PC2 esta libre");
+        check(pc1.getRam().getUsedSize() == 0, "al final la RAM queda libre");
         boolean algunoVencio = false;
         for (PCB p : todos) {
             if (p.isDeadlineMissed()) {

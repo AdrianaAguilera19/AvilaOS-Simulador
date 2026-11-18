@@ -65,11 +65,10 @@ public class PruebasPlanificacion {
         System.out.println("--- " + texto + " ---");
     }
 
-    /** Cluster de 2 computadores; el primero usa la politica indicada y la RAM indicada. */
+    /** Cluster de un computador que usa la politica indicada y la RAM indicada. */
     private static Cluster cluster(SchedulingPolicy politica, int ram) {
         Cluster cl = new Cluster(1, 0);
         cl.addComputer("PC1", politica, ram);
-        cl.addComputer("PC2", new FCFSPolicy(), 100);
         return cl;
     }
 
@@ -228,7 +227,6 @@ public class PruebasPlanificacion {
         cl.tick();
         check(enCpu(pc).equals("C") && cola(pc.getReadySnapshot()).equals("B,A"),
                 "al pasar a Prioridades, C desaloja a A y la cola se reordena: B,A");
-        check(cl.getComputer(2).getAlgorithm() == SchedulingAlgorithm.FCFS, "el otro computador no cambia");
     }
 
     private static void procesoIoBoundSeBloqueaPorEs() {

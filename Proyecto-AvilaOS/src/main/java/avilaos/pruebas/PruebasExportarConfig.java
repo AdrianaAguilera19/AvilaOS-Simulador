@@ -19,7 +19,7 @@ import java.nio.file.Path;
 /**
  * Prueba de guardar la configuracion de un cluster en marcha: se arma un cluster, se deja
  * correr, se exporta con ConfigExporter, se guarda y se carga el JSON, y se comprueba que
- * el cluster nuevo tiene los mismos computadores y procesos (con su deadline inicial).
+ * el cluster nuevo tiene el mismo computador y los mismos procesos (con su deadline inicial).
  * Se ejecuta como programa (main); termina con "TODAS LAS PRUEBAS PASARON" o con codigo 1.
  */
 public class PruebasExportarConfig {
@@ -37,13 +37,10 @@ public class PruebasExportarConfig {
         System.out.println("--- exportar un cluster en marcha ---");
         ConfigDTO exportada = ConfigExporter.fromCluster(cluster);
         check(exportada.cycleDurationMs == 250 && exportada.networkLatency == 2, "ciclo y latencia");
-        check(exportada.computers.length == 3, "3 computadores");
+        check(exportada.computers.length == 1, "1 computador");
         check(exportada.computers[0].name.equals("PC1") && exportada.computers[0].ramSize == 300
-                && exportada.computers[0].policy == SchedulingAlgorithm.FCFS, "PC1: nombre, RAM y politica");
-        check(exportada.computers[1].policy == SchedulingAlgorithm.ROUND_ROBIN && exportada.computers[1].quantum == 3,
-                "PC2: Round Robin con quantum 3");
-        check(exportada.computers[2].policy == SchedulingAlgorithm.EDF && exportada.computers[2].ramSize == 150,
-                "PC3: EDF y RAM 150");
+                && exportada.computers[0].policy == SchedulingAlgorithm.ROUND_ROBIN
+                && exportada.computers[0].quantum == 3, "PC1: nombre, RAM, Round Robin y quantum 3");
         check(exportada.processes.length == 3, "3 procesos (en cualquier estado)");
         check(todosConDeadlineInicial(exportada, original), "cada proceso conserva su deadline inicial");
         check(tipos(exportada), "tipos y datos propios de cada tipo (ciclos, E/S)");
@@ -54,10 +51,10 @@ public class PruebasExportarConfig {
             JSONManager.save(exportada, archivo.toString());
             ConfigDTO cargada = JSONManager.load(archivo.toString());
             Cluster nuevo = ConfigLoader.build(cargada);
-            check(nuevo.getComputerCount() == 3, "el cluster cargado tiene 3 computadores");
+            check(nuevo.getComputerCount() == 1, "el cluster cargado tiene el computador unico");
             check(nuevo.getCurrentCycle() == 0, "el cluster cargado empieza en el ciclo 0");
-            check(nuevo.getComputer(2).getQuantum() == 3
-                    && nuevo.getComputer(2).getAlgorithm() == SchedulingAlgorithm.ROUND_ROBIN, "PC2 cargado igual");
+            check(nuevo.getComputer(1).getQuantum() == 3
+                    && nuevo.getComputer(1).getAlgorithm() == SchedulingAlgorithm.ROUND_ROBIN, "PC1 cargado igual");
             check(totalProcesos(nuevo) == 3, "los 3 procesos se reconstruyeron");
             ConfigDTO otraVez = ConfigExporter.fromCluster(nuevo);
             check(sonIguales(exportada, otraVez), "exportar el cluster cargado da la misma configuracion");
@@ -79,13 +76,11 @@ public class PruebasExportarConfig {
         c.cycleDurationMs = 250;
         c.networkLatency = 2;
         c.computers = new ConfigDTO.ComputerConfig[] {
-            computador("PC1", 300, SchedulingAlgorithm.FCFS, 4),
-            computador("PC2", 300, SchedulingAlgorithm.ROUND_ROBIN, 3),
-            computador("PC3", 150, SchedulingAlgorithm.EDF, 4)};
+            computador("PC1", 300, SchedulingAlgorithm.ROUND_ROBIN, 3)};
         c.processes = new ConfigDTO.ProcessConfig[] {
             proceso("cpu", ProcessType.CPU_BOUND, 1, 10, 80, 1, 20, 0, 0),
             proceso("io", ProcessType.IO_BOUND, 2, 10, 90, 1, 12, 3, 2),
-            proceso("cpu2", ProcessType.CPU_BOUND, 3, 10, 60, 2, 8, 0, 0)};
+            proceso("cpu2", ProcessType.CPU_BOUND, 3, 10, 60, 1, 8, 0, 0)};
         return c;
     }
 

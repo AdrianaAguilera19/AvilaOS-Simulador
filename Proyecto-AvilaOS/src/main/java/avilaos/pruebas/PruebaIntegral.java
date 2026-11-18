@@ -22,8 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * I13: prueba integral con 3 computadores. Un mismo escenario junta CPU, RAM con cola de nuevos,
- * las politicas FCFS, Round Robin y EDF, un cambio de politica en caliente, un deadline que
+ * I13: prueba integral con el computador unico. Un mismo escenario junta CPU, RAM con cola de nuevos,
+ * las politicas FCFS, Round Robin y EDF, dos cambios de politica en caliente, un deadline que
  * vence, un proceso de E/S, las metricas, la configuracion guardada en JSON y la interfaz grafica.
  * Se ejecuta como programa (main), con ticks manuales (siempre da el mismo resultado);
  * termina con "TODAS LAS PRUEBAS PASARON" o con codigo de salida 1.
@@ -39,32 +39,26 @@ public class PruebaIntegral {
 
         System.out.println("--- armado desde la configuracion ---");
         Cluster cluster = ConfigLoader.build(config);
-        check(cluster.getComputerCount() == 3, "el cluster tiene 3 computadores");
-        check(cluster.getComputer(1).getAlgorithm() == SchedulingAlgorithm.FCFS
-                && cluster.getComputer(2).getAlgorithm() == SchedulingAlgorithm.ROUND_ROBIN
-                && cluster.getComputer(3).getAlgorithm() == SchedulingAlgorithm.EDF,
-                "cada computador arranca con su politica (FCFS, Round Robin, EDF)");
+        check(cluster.getComputerCount() == 1, "el cluster tiene el computador unico");
+        check(cluster.getComputer(1).getAlgorithm() == SchedulingAlgorithm.FCFS, "el computador arranca con FCFS");
 
         System.out.println("--- ejecucion ---");
         cluster.tick();
         check(cluster.getComputer(1).getNewSnapshot().size() >= 1,
                 "RAM de PC1 justa: un proceso espera en la cola de nuevos");
         cluster.setPolicy(1, SchedulingAlgorithm.ROUND_ROBIN);
-        check(cluster.getComputer(1).getAlgorithm() == SchedulingAlgorithm.ROUND_ROBIN
-                && cluster.getComputer(3).getAlgorithm() == SchedulingAlgorithm.EDF,
-                "cambio de politica en caliente en PC1 sin afectar a PC3");
-
-        int ciclos = correr(cluster) + 1;   // +1: el tick de arriba
+        check(cluster.getComputer(1).getAlgorithm() == SchedulingAlgorithm.ROUND_ROBIN,
+                "cambio de politica en caliente: de FCFS a Round Robin");
+        int ciclos = correrConCambios(cluster);
+        check(cluster.getComputer(1).getAlgorithm() == SchedulingAlgorithm.EDF,
+                "segundo cambio en caliente: de Round Robin a EDF");
         check(ciclos > 1, "todos los procesos terminan (" + ciclos + " ciclos)");
 
         System.out.println("--- resultados ---");
         PCB[] todos = procesos(cluster);
         check(todos.length == 7, "los 7 procesos quedaron en la cola de terminados");
         check(soloVenceEdf1(todos), "solo edf1 (deadline 4) termino por vencimiento");
-        check(cluster.getComputer(1).getRam().getUsedSize() == 0
-                && cluster.getComputer(2).getRam().getUsedSize() == 0
-                && cluster.getComputer(3).getRam().getUsedSize() == 0,
-                "al terminar toda la RAM queda libre");
+        check(cluster.getComputer(1).getRam().getUsedSize() == 0, "al terminar toda la RAM queda libre");
 
         System.out.println("--- metricas ---");
         Metrics sistema = MetricsCalculator.forSystem(cluster);
@@ -83,12 +77,12 @@ public class PruebaIntegral {
         try {
             JSONManager.save(ConfigExporter.fromCluster(cluster), archivo.toString());
             Cluster recargado = ConfigLoader.build(JSONManager.load(archivo.toString()));
-            check(recargado.getComputerCount() == 3
+            check(recargado.getComputerCount() == 1
                     && ConfigExporter.fromCluster(recargado).processes.length == 7,
-                    "guardar y cargar reconstruye 3 computadores y los 7 procesos");
+                    "guardar y cargar reconstruye el computador y los 7 procesos");
             recargado.tick();
             recargado.setPolicy(1, SchedulingAlgorithm.ROUND_ROBIN);
-            int otraVez = correr(recargado) + 1;
+            int otraVez = correrConCambios(recargado);
             check(otraVez == ciclos, "la simulacion cargada del JSON repite el resultado (" + otraVez
                     + " ciclos, igual que la original)");
         } finally {
@@ -127,24 +121,21 @@ public class PruebaIntegral {
         System.exit(0);
     }
 
-    /** 3 computadores con RAM 100, latencia 2 y 7 procesos. */
+    /** Un computador con RAM 100 (FCFS, quantum 4) y 7 procesos que no caben todos a la vez. */
     private static ConfigDTO escenario() {
         ConfigDTO c = new ConfigDTO();
         c.cycleDurationMs = 10;
-        c.networkLatency = 2;
-        c.computers = new ConfigDTO.ComputerConfig[] {
-            computador("PC1", SchedulingAlgorithm.FCFS, 4),
-            computador("PC2", SchedulingAlgorithm.ROUND_ROBIN, 3),
-            computador("PC3", SchedulingAlgorithm.EDF, 4)};
+        c.networkLatency = 0;
+        c.computers = new ConfigDTO.ComputerConfig[] {computador("PC1", SchedulingAlgorithm.FCFS, 4)};
 
         c.processes = new ConfigDTO.ProcessConfig[] {
-            proceso("cpuA", ProcessType.CPU_BOUND, 2, 60, 300, 1, 10, 0, 0),
-            proceso("cpuB", ProcessType.CPU_BOUND, 3, 60, 300, 1, 10, 0, 0),
-            proceso("rr1", ProcessType.CPU_BOUND, 2, 20, 300, 2, 12, 0, 0),
-            proceso("rr2", ProcessType.CPU_BOUND, 2, 20, 300, 2, 12, 0, 0),
-            proceso("edf1", ProcessType.CPU_BOUND, 1, 10, 4, 3, 10, 0, 0),
-            proceso("edf2", ProcessType.CPU_BOUND, 1, 10, 60, 3, 6, 0, 0),
-            proceso("io", ProcessType.IO_BOUND, 2, 10, 200, 3, 6, 2, 2)};
+            proceso("cpuA", ProcessType.CPU_BOUND, 2, 60, 500, 1, 10, 0, 0),
+            proceso("cpuB", ProcessType.CPU_BOUND, 3, 60, 500, 1, 10, 0, 0),
+            proceso("rr1", ProcessType.CPU_BOUND, 2, 20, 500, 1, 12, 0, 0),
+            proceso("rr2", ProcessType.CPU_BOUND, 2, 20, 500, 1, 12, 0, 0),
+            proceso("edf1", ProcessType.CPU_BOUND, 1, 10, 4, 1, 10, 0, 0),
+            proceso("edf2", ProcessType.CPU_BOUND, 1, 10, 500, 1, 6, 0, 0),
+            proceso("io", ProcessType.IO_BOUND, 2, 10, 500, 1, 6, 2, 2)};
         return c;
     }
 
@@ -170,6 +161,19 @@ public class PruebaIntegral {
         p.ioInterval = ioInt;
         p.ioDuration = ioDur;
         return p;
+    }
+
+    /**
+     * Sigue desde Round Robin: 5 ciclos mas, cambia a EDF y corre hasta que todos terminen.
+     * @return ciclos totales (contando el tick y los 5 ciclos de antes de terminar)
+     */
+    private static int correrConCambios(Cluster c) {
+        for (int i = 0; i < 5; i++) {
+            c.tick();
+        }
+        c.setPolicy(1, SchedulingAlgorithm.EDF);
+        int resto = correr(c);
+        return resto < 0 ? -1 : resto + 6;   // +1 del tick inicial y +5 de arriba
     }
 
     /** Avanza ciclo a ciclo hasta que todos los procesos terminen. @return ciclos usados, o -1 */
