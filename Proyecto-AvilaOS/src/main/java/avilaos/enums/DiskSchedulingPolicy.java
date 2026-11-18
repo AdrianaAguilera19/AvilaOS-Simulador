@@ -6,14 +6,16 @@ package avilaos.enums;
 
 /**
  * Politicas de planificacion de disco.
- * Para agregar una extra (LOOK, C-LOOK) basta una constante nueva aqui y su clase en el planificador.
+ * Para agregar una extra basta una constante nueva aqui, su clase y un caso en DiskPolicyFactory
+ * (asi se agrego LOOK, sin tocar el planificador)
  * @author Antonella Ruiz
  */
 public enum DiskSchedulingPolicy {
     FIFO("FIFO"),
     SSTF("SSTF"),
     SCAN("SCAN"),
-    C_SCAN("C-SCAN");
+    C_SCAN("C-SCAN"),
+    LOOK("LOOK");
 
     private final String etiqueta;
 
