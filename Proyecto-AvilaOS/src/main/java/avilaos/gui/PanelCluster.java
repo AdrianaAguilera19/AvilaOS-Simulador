@@ -37,7 +37,6 @@ public class PanelCluster extends JPanel {
 
     private final Cluster cluster;
     private final PanelComputador[] panels;
-          private final PanelBuffers panelBuffers;   // S09: buffers y semaforos
         private final PanelLog panelLog;   // S11 / I06: log de eventos
     private int estado = DETENIDO;
         private DialogoGrafica dialogoGrafica;   // I08: se crea la primera vez que se abre
@@ -105,9 +104,8 @@ public class PanelCluster extends JPanel {
         
         // I05: crear procesos y buffers con la simulacion en marcha
         Tema.Boton btnNuevoProceso = new Tema.Boton("Nuevo proceso", false);
-        Tema.Boton btnNuevoBuffer = new Tema.Boton("Nuevo buffer", false);
+    
         btnNuevoProceso.addActionListener(e -> nuevoProceso());
-        btnNuevoBuffer.addActionListener(e -> nuevoBuffer());
         JPanel fila3 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 4));
         fila3.setOpaque(false);
                 Tema.Boton btnGrafica = new Tema.Boton("Grafica de CPU", false);   // I08
@@ -119,7 +117,6 @@ public class PanelCluster extends JPanel {
         btnCargarConfig.addActionListener(e -> cargarConfig());
         fila3.add(btnGuardarConfig);
         fila3.add(btnCargarConfig);
-        fila3.add(btnNuevoBuffer);
         fila3.add(btnNuevoProceso);
         controles.add(fila3);
         top.add(controles, BorderLayout.EAST);
@@ -136,11 +133,9 @@ public class PanelCluster extends JPanel {
         }
       
 
-        panelBuffers = new PanelBuffers(cluster);
         panelLog = new PanelLog(cluster.getLogger());
-        JPanel sur = new JPanel(new GridLayout(1, 2, 18, 0));
+        JPanel sur = new JPanel(new GridLayout(1, 1, 18, 0));
         sur.setOpaque(false);
-        sur.add(panelBuffers);
         sur.add(panelLog);
         sur.setPreferredSize(new java.awt.Dimension(10, 150));
         java.awt.GridBagConstraints g = new java.awt.GridBagConstraints();
@@ -252,11 +247,7 @@ public class PanelCluster extends JPanel {
         refresh();
     }
 
-    /** I05: abre la ventana para crear un buffer nuevo. */
-    private void nuevoBuffer() {
-        DialogosCreacion.nuevoBuffer(javax.swing.SwingUtilities.getWindowAncestor(this), cluster);
-        refresh();
-    }
+    
 
     /** Activa o desactiva los botones y cambia la pastilla segun el estado. */
     private void actualizarEstado() {
@@ -282,7 +273,7 @@ public class PanelCluster extends JPanel {
         for (int i = 0; i < panels.length; i++) {
             panels[i].refresh();
         }
-                  panelBuffers.refresh();
+                  
         panelLog.refresh();
     }
 

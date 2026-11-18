@@ -6,12 +6,11 @@ import avilaos.enums.ProcessType;
 import avilaos.model.hardware.Cluster;
 import avilaos.model.hardware.Computer;
 import avilaos.model.process.PCB;
-import avilaos.sync.BoundedBuffer;
 
 /**
  * Hace lo contrario de ConfigLoader: describe un cluster como una ConfigDTO, lista para
  * guardarla con JSONManager. Guarda los parametros del cluster (ciclo, latencia, computadores,
- * RAM, politica y quantum), sus buffers y todos sus procesos con los datos con que se crearon
+ * RAM, politica y quantum), y todos sus procesos con los datos con que se crearon
  * (el deadline inicial, no el que les queda), de modo que al cargarla se repite la carga inicial.
  */
 public class ConfigExporter {
@@ -39,16 +38,7 @@ public class ConfigExporter {
             config.computers[i] = cc;
         }
 
-        CustomLinkedList<BoundedBuffer> buffers = cluster.getBufferManager().getSnapshot();
-        config.buffers = new ConfigDTO.BufferConfig[buffers.size()];
-        for (int i = 0; i < buffers.size(); i++) {
-            BoundedBuffer b = buffers.get(i);
-            ConfigDTO.BufferConfig bc = new ConfigDTO.BufferConfig();
-            bc.id = b.getId();
-            bc.capacity = b.getCapacity();
-            bc.hostComputerId = b.getHostComputerId();
-            config.buffers[i] = bc;
-        }
+        
 
         // Todos los procesos de todos los computadores, en el orden en que se crearon (por id)
         PCB[] all = new PCB[0];
@@ -124,16 +114,10 @@ public class ConfigExporter {
         pc.memorySize = p.getMemorySize();
         pc.deadline = p.getInitialDeadline();
         pc.computerId = p.getComputerId();
-        if (p.getType() == ProcessType.PRODUCER || p.getType() == ProcessType.CONSUMER) {
-            pc.bufferId = p.getAssociatedBufferId();
-            pc.cyclesPerItem = p.getCyclesPerItem();
-            pc.itemsRequired = p.getItemsRequired();
-        } else {
-            pc.cycles = p.getTotalInstructions();
-            if (p.getType() == ProcessType.IO_BOUND) {
-                pc.ioInterval = p.getIoInterval();
-                pc.ioDuration = p.getIoDuration();
-            }
+        pc.cycles = p.getTotalInstructions();
+        if (p.getType() == ProcessType.IO_BOUND) {
+            pc.ioInterval = p.getIoInterval();
+            pc.ioDuration = p.getIoDuration();
         }
         return pc;
     }

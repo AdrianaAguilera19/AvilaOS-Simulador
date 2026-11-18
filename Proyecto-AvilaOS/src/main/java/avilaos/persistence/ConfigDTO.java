@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package avilaos.persistence;
 
 import avilaos.enums.ProcessType;
@@ -34,11 +30,6 @@ public class ConfigDTO {
     public ProcessConfig[] processes;
     
     /** 
-     * Buffers iniciales 
-     */
-    public BufferConfig[] buffers;
-
-    /** 
      * Datos de un computador
      */
     public static class ComputerConfig {
@@ -61,18 +52,6 @@ public class ConfigDTO {
         public int cycles;
         public int ioInterval;
         public int ioDuration;
-        public int bufferId;
-        public int cyclesPerItem;
-        public int itemsRequired;
-    }
-
-    /** 
-     * Datos de un buffer inicial
-     */
-    public static class BufferConfig {
-        public int id;
-        public int capacity;
-        public int hostComputerId;
     }
 
     /**
@@ -93,12 +72,6 @@ public class ConfigDTO {
         // Cada computador
         for (int i = 0; i < computers.length; i++) {
             validateComputer(computers[i], i + 1);
-        }
-        // Los buffers se revisan antes que los procesos porque los productores y consumidores los usan
-        if (buffers != null) {
-            for (int i = 0; i < buffers.length; i++) {
-                validateBuffer(buffers[i], i + 1);
-            }
         }
         if (processes != null) {
             for (int i = 0; i < processes.length; i++) {
@@ -126,31 +99,6 @@ public class ConfigDTO {
         }
         if (c.quantum <= 0) {
             throw new ConfigException("El computador " + number + " debe tener un quantum mayor que 0");
-        }
-    }
-
-    /**
-     * @param b buffer a revisar
-     * @param number posicion (desde 1), solo para el mensaje de error
-     */
-    private void validateBuffer(BufferConfig b, int number) throws ConfigException {
-        if (b == null) {
-            throw new ConfigException("El buffer " + number + " esta vacio");
-        }
-        if (b.id < 0) {
-            throw new ConfigException("El buffer " + number + " tiene un id negativo");
-        }
-        if (b.capacity <= 0) {
-            throw new ConfigException("El buffer " + b.id + " debe tener una capacidad mayor que 0");
-        }
-        if (b.hostComputerId < 1 || b.hostComputerId > computers.length) {
-            throw new ConfigException("El buffer " + b.id + " tiene un computador anfitrion que no existe");
-        }
-        // No puede haber dos buffers con el mismo id
-        for (int j = 0; j < number - 1; j++) {
-            if (buffers[j] != null && buffers[j].id == b.id) {
-                throw new ConfigException("El id de buffer " + b.id + " esta repetido");
-            }
         }
     }
 
@@ -192,30 +140,8 @@ public class ConfigDTO {
                 throw new ConfigException(who + " necesita ciclos, intervalo y duracion de E/S mayores que 0");
             }
         } else {
-            // PRODUCER o CONSUMER
-            if (p.cyclesPerItem <= 0 || p.itemsRequired <= 0) {
-                throw new ConfigException(who + " necesita ciclos por elemento y elementos mayores que 0");
-            }
-            if (!bufferExists(p.bufferId)) {
-                throw new ConfigException(who + " usa un buffer que no esta en la configuracion");
-            }
+            // El simulador ya no trabaja con productores, consumidores ni buffers (B02)
+            throw new ConfigException(who + " es de tipo " + p.type + ": el simulador ya no usa productores, consumidores ni buffers");
         }
-    }
-
-    /**
-     * @param id id de buffer a buscar
-     * @return true si hay un buffer con ese id en la configuracion
-     */
-    private boolean bufferExists(int id) {
-        if (buffers == null) {
-            return false;
-        }
-        for (int i = 0; i < buffers.length; i++) {
-            if (buffers[i] != null && buffers[i].id == id) {
-                return true;
-            }
-        }
-        return false;
     }
 }
-

@@ -1,8 +1,3 @@
-
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package avilaos.gui;
 
 import avilaos.datastructures.CustomLinkedList;
@@ -10,7 +5,6 @@ import avilaos.enums.ProcessType;
 import avilaos.model.hardware.Cluster;
 import avilaos.model.hardware.Computer;
 import avilaos.persistence.ConfigDTO;
-import avilaos.sync.BoundedBuffer;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
@@ -25,18 +19,13 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 /**
- * Ventanas para crear un buffer o un proceso nuevo desde la interfaz (I05), con la
+ * Ventana para crear un proceso nuevo desde la interfaz (I05), con la
  * simulacion corriendo o en pausa. Solo recogen los datos; las reglas y la creacion
  * las hace CreadorManual, y cualquier error se muestra dentro de la ventana.
  */
 public final class DialogosCreacion {
 
     private DialogosCreacion() {}
-
-    /** Abre la ventana para crear un buffer. */
-    public static void nuevoBuffer(Window owner, Cluster cluster) {
-        new DialogoBuffer(owner, cluster).setVisible(true);
-    }
 
     /** Abre la ventana para crear un proceso. */
     public static void nuevoProceso(Window owner, Cluster cluster) {
@@ -159,31 +148,10 @@ public final class DialogosCreacion {
         }
     }
 
-    /** Ventana "Nuevo buffer": capacidad y computador anfitrion. */
-    private static final class DialogoBuffer extends Base {
-
-        private final JTextField txtCapacidad = campoTexto("5");
-        private final JComboBox<String> cmbHost;
-
-        DialogoBuffer(Window owner, Cluster cluster) {
-            super(owner, cluster, "Nuevo buffer", "Crear buffer");
-            cmbHost = selectorComputadores(cluster);
-            agregarFila("Capacidad", txtCapacidad);
-            agregarFila("Computador anfitrion", cmbHost);
-            abrir(owner);
-        }
-
-        @Override
-        protected void crear() {
-            int capacidad = entero(txtCapacidad, "La capacidad");
-            CreadorManual.crearBuffer(cluster, capacidad, idComputadorElegido(cluster, cmbHost));
-        }
-    }
-
     /** Ventana "Nuevo proceso": los campos cambian segun el tipo elegido. */
     private static final class DialogoProceso extends Base {
 
-        private final JComboBox<ProcessType> cmbTipo = new JComboBox<>(ProcessType.values());
+        private final JComboBox<ProcessType> cmbTipo = new JComboBox<>(new ProcessType[]{ProcessType.CPU_BOUND, ProcessType.IO_BOUND});
         private final JTextField txtNombre = campoTexto("");
         // final JComboBox<String> cmbComputador;
         private final JTextField txtPrioridad = campoTexto("1");
@@ -192,26 +160,13 @@ public final class DialogosCreacion {
         private final JTextField txtCiclos = campoTexto("10");
         private final JTextField txtIntervalo = campoTexto("3");
         private final JTextField txtDuracionEs = campoTexto("2");
-        private final JComboBox<String> cmbBuffer = new JComboBox<>();
-        private final JTextField txtCiclosElemento = campoTexto("2");
-        private final JTextField txtElementos = campoTexto("5");
 
-        private javax.swing.JComponent[] filaCiclos, filaIntervalo, filaDuracion,
-                filaBuffer, filaCiclosElemento, filaElementos;
-        private final int[] idsBuffers;
+        private javax.swing.JComponent[] filaCiclos, filaIntervalo, filaDuracion;
 
         DialogoProceso(Window owner, Cluster cluster) {
             super(owner, cluster, "Nuevo proceso", "Crear proceso");
             //cmbComputador = selectorComputadores(cluster);
 
-            CustomLinkedList<BoundedBuffer> buffers = cluster.getBufferManager().getSnapshot();
-            idsBuffers = new int[buffers.size()];
-            for (int i = 0; i < buffers.size(); i++) {
-                BoundedBuffer b = buffers.get(i);
-                idsBuffers[i] = b.getId();
-                cmbBuffer.addItem("B" + b.getId() + " (capacidad " + b.getCapacity()
-                        + ", en computador " + b.getHostComputerId() + ")");
-            }
 
             agregarFila("Tipo", cmbTipo);
             agregarFila("Nombre", txtNombre);
@@ -222,9 +177,6 @@ public final class DialogosCreacion {
             filaCiclos = agregarFila("Ciclos de ejecucion", txtCiclos);
             filaIntervalo = agregarFila("Cada cuantos ciclos pide E/S", txtIntervalo);
             filaDuracion = agregarFila("Duracion de la E/S (ciclos)", txtDuracionEs);
-            filaBuffer = agregarFila("Buffer", cmbBuffer);
-            filaCiclosElemento = agregarFila("Ciclos por elemento", txtCiclosElemento);
-            filaElementos = agregarFila("Elementos a procesar", txtElementos);
 
             cmbTipo.addActionListener(e -> {
                 actualizarCampos();
@@ -239,13 +191,9 @@ public final class DialogosCreacion {
             ProcessType t = (ProcessType) cmbTipo.getSelectedItem();
             boolean cpu = t == ProcessType.CPU_BOUND;
             boolean io = t == ProcessType.IO_BOUND;
-            boolean sync = t == ProcessType.PRODUCER || t == ProcessType.CONSUMER;
             mostrar(filaCiclos, cpu || io);
             mostrar(filaIntervalo, io);
             mostrar(filaDuracion, io);
-            mostrar(filaBuffer, sync);
-            mostrar(filaCiclosElemento, sync);
-            mostrar(filaElementos, sync);
             pack();
         }
 
@@ -264,14 +212,6 @@ public final class DialogosCreacion {
             if (d.type == ProcessType.IO_BOUND) {
                 d.ioInterval = entero(txtIntervalo, "El intervalo de E/S");
                 d.ioDuration = entero(txtDuracionEs, "La duracion de la E/S");
-            }
-            if (d.type == ProcessType.PRODUCER || d.type == ProcessType.CONSUMER) {
-                if (idsBuffers.length == 0) {
-                    throw new IllegalArgumentException("No hay buffers: crea uno primero (boton Nuevo buffer)");
-                }
-                d.bufferId = idsBuffers[cmbBuffer.getSelectedIndex()];
-                d.cyclesPerItem = entero(txtCiclosElemento, "Los ciclos por elemento");
-                d.itemsRequired = entero(txtElementos, "Los elementos a procesar");
             }
             CreadorManual.crearProceso(cluster, d);
         }
