@@ -30,6 +30,8 @@ public final class DiskPolicyFactory {
                 return new ScanPolicy();
             case C_SCAN:
                 return new CScanPolicy();
+            case LOOK:
+                return new LookPolicy();
             default:
                 throw new IllegalArgumentException("No hay clase para la politica " + type);
         }
