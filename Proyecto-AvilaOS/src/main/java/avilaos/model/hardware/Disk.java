@@ -10,10 +10,7 @@ import avilaos.os.disk.DiskRequest;
 import java.util.concurrent.Semaphore;
 
 /**
- * Disco como componente de hardware: guarda el mapa de bloques y el cabezal, y se suscribe al reloj
- * global igual que la CPU y la RAM. En cada tick avanza exactamente un ciclo de trabajo:
- * mover el cabezal hasta k posiciones, o transferir un bloque. Atiende una solicitud a la vez.
- * No contiene logica del sistema de archivos ni de planificacion: eso vive en la capa del SO.
+ * Disco como componente de hardware
  * @author Antonella Ruiz
  */
 public class Disk implements Clockable {
@@ -21,6 +18,7 @@ public class Disk implements Clockable {
     private final DiskHead head;
     private final Semaphore mutex = new Semaphore(1);
     private long workCycles = 0;
+    private boolean paused = false;
 
     private DiskRequest current;
     private long startCycle;
@@ -51,7 +49,7 @@ public class Disk implements Clockable {
     /** Cantidad de bloques del disco. */
     public int totalBlocks() { return map.size(); }
 
-    /** Cuantos ciclos de trabajo ha hecho el disco desde que se creo. */
+    /** Cuantos ciclos de trabajo ha hecho el disco desde que se creo (los ticks en pausa no cuentan). */
     public long getWorkCycles() {
         mutex.acquireUninterruptibly();
         try {
@@ -64,44 +62,87 @@ public class Disk implements Clockable {
     public void setListener(DiskListener listener) { this.listener = listener; }
 
     /** true si el disco esta atendiendo una solicitud. */
-    public synchronized boolean isBusy() { return current != null; }
+    public boolean isBusy() { return getCurrent() != null; }
 
     /** La solicitud en servicio, o null si esta libre. */
-    public synchronized DiskRequest getCurrent() { return current; }
+    public DiskRequest getCurrent() {
+        mutex.acquireUninterruptibly();
+        try {
+            return current;
+        } finally {
+            mutex.release();
+        }
+    }
+
+    /**
+     * Pausa el disco. Cuando este metodo regresa ningun tick en curso puede cambiar el estado:
+     * los siguientes se ignoran hasta llamar a {@link #resume()}. Pausar dos veces no hace nada.
+     */
+    public void pause() { setPaused(true); }
+
+    /** Reanuda el disco: el siguiente tick continua exactamente donde se quedo. */
+    public void resume() { setPaused(false); }
+
+    /** true si el disco esta en pausa. */
+    public boolean isPaused() {
+        mutex.acquireUninterruptibly();
+        try {
+            return paused;
+        } finally {
+            mutex.release();
+        }
+    }
+
+    private void setPaused(boolean value) {
+        mutex.acquireUninterruptibly();
+        try {
+            paused = value;
+        } finally {
+            mutex.release();
+        }
+    }
 
     /**
      * Empieza a atender una solicitud. El disco atiende una sola a la vez.
+     * Tambien se puede llamar en pausa: la solicitud queda lista y avanza al reanudar.
      * @param cycle ciclo actual del reloj; el tiempo de servicio se cuenta desde el siguiente tick
      */
-    public synchronized void begin(DiskRequest request, long cycle) {
+    public void begin(DiskRequest request, long cycle) {
         if (request == null) {
             throw new IllegalArgumentException("Falta la solicitud");
-        }
-        if (current != null) {
-            throw new IllegalStateException("El disco ya esta atendiendo una solicitud");
         }
         if (request.getTargetBlock() >= map.size()) {
             throw new IllegalArgumentException("El bloque " + request.getTargetBlock() + " esta fuera del disco");
         }
-        current = request;
-        startCycle = cycle;
-        headBefore = head.getPosition();
-        transferred = 0;
-    }
-
-    /** Cada tick del reloj es exactamente un ciclo de trabajo del disco. */
-    @Override
-    public void onTick(long cycle) {
         mutex.acquireUninterruptibly();
         try {
-            workCycles++;
+            if (current != null) {
+                throw new IllegalStateException("El disco ya esta atendiendo una solicitud");
+            }
+            current = request;
+            startCycle = cycle;
+            headBefore = head.getPosition();
+            transferred = 0;
         } finally {
             mutex.release();
         }
+    }
+
+    /**
+     * Cada tick del reloj es exactamente un ciclo de trabajo del disco, salvo en pausa, donde no pasa nada.
+     * El aviso al listener se hace fuera del semaforo para que este pueda pedirle otra solicitud al disco.
+     */
+    @Override
+    public void onTick(long cycle) {
         DiskRequest finished = null;
         long start = 0;
         int before = 0;
-        synchronized (this) {
+        mutex.acquireUninterruptibly();
+        try {
+            if (paused) {
+                return;
+            }
+            workCycles++;
             if (current == null) {
                 return;
             }
@@ -116,6 +157,8 @@ public class Disk implements Clockable {
                     current = null;
                 }
             }
+        } finally {
+            mutex.release();
         }
         DiskListener l = listener;
         if (finished != null && l != null) {
