@@ -8,20 +8,19 @@
  */
 package avilaos.gui;
 
+import avilaos.enums.LogCategory;
 import avilaos.log.EventLogger;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import javax.swing.BorderFactory;
+import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
 /**
- * Pantalla del log de eventos (I06): muestra los ultimos eventos del sistema
- * (bloqueos, despertares, accesos remotos, seleccion de procesos...).
- * Solo lee copias del EventLogger; nunca toca la logica de la simulacion.
- * Se redibuja desde el Timer de PanelCluster (hilo de Swing), y solo cuando hay
- * eventos nuevos.
+ * Pantalla del log de eventos 
  */
 public class PanelLog extends Tema.PanelRedondeado {
 
@@ -31,7 +30,9 @@ public class PanelLog extends Tema.PanelRedondeado {
     private final EventLogger logger;
     private final JTextArea area = new JTextArea();
     private final JScrollPane scroll = new JScrollPane(area);
+    private final JComboBox<String> filtro = new JComboBox<>();
     private long ultimoTotal = -1;   // total de eventos que habia la ultima vez que se dibujo
+    private LogCategory categoria = null;   // null = todas
 
     public PanelLog(EventLogger logger) {
         super(Tema.TARJETA, Tema.BORDE, 24);
@@ -43,7 +44,25 @@ public class PanelLog extends Tema.PanelRedondeado {
         setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
         setPreferredSize(new Dimension(100, 210));
 
-        add(Tema.etiqueta("Log de eventos", Tema.SUBTITULO, Tema.TEXTO), BorderLayout.NORTH);
+        filtro.addItem("Todas las categorias");
+        for (LogCategory c : LogCategory.values()) {
+            filtro.addItem(c.getLabel());
+        }
+        filtro.setFont(Tema.NORMAL);
+        filtro.addActionListener(e -> {
+            int i = filtro.getSelectedIndex();
+            categoria = i <= 0 ? null : LogCategory.values()[i - 1];
+            ultimoTotal = -1;   // fuerza a redibujar con el filtro nuevo
+            refresh();
+        });
+        JPanel encabezado = new JPanel(new BorderLayout(8, 0));
+        encabezado.setOpaque(false);
+        encabezado.add(Tema.etiqueta("Log de eventos", Tema.SUBTITULO, Tema.TEXTO), BorderLayout.WEST);
+        JPanel derecha = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        derecha.setOpaque(false);
+        derecha.add(filtro);
+        encabezado.add(derecha, BorderLayout.CENTER);
+        add(encabezado, BorderLayout.NORTH);
 
         area.setEditable(false);
         area.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 12));
@@ -61,7 +80,7 @@ public class PanelLog extends Tema.PanelRedondeado {
             return;
         }
         ultimoTotal = total;
-        area.setText(logger.getLastAsText(LINEAS_VISIBLES));
+        area.setText(logger.getLastAsText(LINEAS_VISIBLES, categoria));
         area.setCaretPosition(area.getDocument().getLength());   // baja hasta el evento mas reciente
     }
 }
