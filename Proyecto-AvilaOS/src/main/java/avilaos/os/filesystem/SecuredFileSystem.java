@@ -1,12 +1,15 @@
 package avilaos.os.filesystem;
 
 import avilaos.datastructures.DynamicArray;
+import avilaos.enums.NodeType;
 import avilaos.enums.Permission;
 import avilaos.interfaces.AccessControl;
+import avilaos.model.hardware.BlockMap;
+import avilaos.model.process.PCB;
 import java.util.concurrent.Semaphore;
 
 /**
- * El sistema de archivos con autorizacion
+ * El sistema de archivos con autorizacion y proteccion por semaforo (F10, F11, F13).
  */
 public class SecuredFileSystem {
 
@@ -29,6 +32,8 @@ public class SecuredFileSystem {
      * Una vez arrancada la simulacion, todo acceso debe pasar por los metodos de esta clase.
      */
     public FileSystem getFileSystem() { return fs; }
+
+    public AccessControl getAccessControl() { return access; }
 
     /** Ver la estructura es libre para todos los usuarios. */
     public DynamicArray<String> list() {
@@ -53,6 +58,19 @@ public class SecuredFileSystem {
             lock.release();
         }
         return result;
+    }
+
+    /**
+     * Valida permisos, rutas y espacio libre bajo el semaforo del sistema de archivos y calcula
+     * el bloque destino y bloques a transferir de una operacion CRUD sin modificar el arbol (E08, E09).
+     */
+    public DiskIoCostTable.IoPlan planIo(PCB pcb, NodeType createNodeType, BlockMap map) {
+        lock.acquireUninterruptibly();
+        try {
+            return DiskIoCostTable.plan(pcb, createNodeType, fs, access, map);
+        } finally {
+            lock.release();
+        }
     }
 
     private static void collect(FileNode node, String path, int depth, DynamicArray<FileSnapshot> out) {
@@ -83,6 +101,12 @@ public class SecuredFileSystem {
     }
 
     public FsResult createFile(ActiveUser who, String directoryPath, String name, int sizeBlocks, Permission permission) {
+        return createFile(who, directoryPath, name, sizeBlocks, permission, FileNode.NO_CREATOR);
+    }
+
+    /** Crea un archivo bajo el semaforo guardando el ID del proceso de E/S que lo creo (F14). */
+    public FsResult createFile(ActiveUser who, String directoryPath, String name, int sizeBlocks,
+            Permission permission, int creatorProcessId) {
         lock.acquireUninterruptibly();
         try {
             PathResult dir = fs.getTree().find(directoryPath);
@@ -93,7 +117,8 @@ public class SecuredFileSystem {
             if (!d.isAllowed()) {
                 return denied(d);
             }
-            return creator.create(directoryPath, name, sizeBlocks, who.getName(), who.getMode(), permission);
+            return creator.create(directoryPath, name, sizeBlocks, who.getName(), who.getMode(),
+                    permission, creatorProcessId);
         } finally {
             lock.release();
         }
