@@ -290,7 +290,18 @@ public class PCB {
     
     
     // Setters
-    public void setState(ProcessState state) { this.state = state; }
+        /**
+     * S01: cambia el estado solo si la transicion esta permitida (ver StateTransitions).
+     * Si no lo esta, el proceso conserva su estado.
+     * @return true si el proceso quedo en el estado pedido, false si la transicion se rechazo
+     */
+    public boolean setState(ProcessState next) {
+        if (!StateTransitions.isAllowed(this.state, next)) {
+            return false;
+        }
+        this.state = next;
+        return true;
+    }
     public void setBlockReason(BlockReason blockReason) { this.blockReason = blockReason; }
         public void setWaitingOn(WaitCanceller waitingOn) { this.waitingOn = waitingOn; }
           public void setBlockedSinceCycle(long cycle) { this.blockedSinceCycle = cycle; }

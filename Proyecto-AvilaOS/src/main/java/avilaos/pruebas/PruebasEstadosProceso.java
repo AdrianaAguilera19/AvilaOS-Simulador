@@ -36,11 +36,13 @@ public class PruebasEstadosProceso {
         System.out.println("--- el PCB usa el enum ---");
         PCB p = ProcessFactory.createCpuBound("p", 1, 10, 5, 100, 1, 0);
         check(p.getState() == ProcessState.NEW, "un proceso recien creado esta en NEW");
-        for (int i = 0; i < todos.length; i++) {
-            p.setState(todos[i]);
-            check(p.getState() == todos[i], "el PCB guarda " + todos[i]);
+                // recorre los siete estados por un camino legal (S01 rechaza los saltos invalidos)
+        ProcessState[] camino = {ProcessState.READY, ProcessState.RUNNING, ProcessState.BLOCKED,
+            ProcessState.BLOCKED_SUSPENDED, ProcessState.READY_SUSPENDED, ProcessState.READY, ProcessState.TERMINATED};
+        for (int i = 0; i < camino.length; i++) {
+            p.setState(camino[i]);
+            check(p.getState() == camino[i], "el PCB guarda " + camino[i]);
         }
-
         System.out.println();
         if (fallas == 0) {
             System.out.println("TODAS LAS PRUEBAS PASARON (" + verificaciones + " verificaciones)");
