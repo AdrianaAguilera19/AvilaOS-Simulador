@@ -26,7 +26,7 @@ import avilaos.log.EventLogger;
 import avilaos.enums.StepKind;
 import avilaos.interfaces.MemoryAdmission;
 import avilaos.os.midterm.FifoMemoryAdmission;
-
+import avilaos.os.midterm.MediumTermScheduler;
 
 /**
  * Un computador del cluster. Cada instancia tiene sus propias colas y su
@@ -63,6 +63,7 @@ public class Computer implements Clockable {
     private final UtilizationHistory utilizationHistory = new UtilizationHistory();
     private final RAM ram;
     private volatile MemoryAdmission admission = new FifoMemoryAdmission();
+        private final MediumTermScheduler mediumTerm = new MediumTermScheduler(this);   // S04
 
     // Colas propias de este computador
     private final CustomQueue<PCB> newQueue = new CustomQueue<>();      // procesos que acaban de llegar
@@ -231,6 +232,7 @@ public class Computer implements Clockable {
 
         // 1. Admision: paso los procesos nuevos a listos (A13 lo condicionara a la RAM)
         admitFromNewQueue(currentPolicy);
+                mediumTerm.onTick(cycle);   // S04: el planificador de mediano plazo actua despues de la admision
 
         // 2. Si hay un proceso en la CPU, ejecuta una instruccion
         if (!cpu.isFree()) {
@@ -563,6 +565,7 @@ public class Computer implements Clockable {
     /** P12: copia del historial de utilizacion de la CPU de este computador (una muestra por ciclo). */
     public UtilizationSeries getUtilizationSeries() { return utilizationHistory.snapshot(); }
     public RAM getRam() { return ram; }
+        public MediumTermScheduler getMediumTermScheduler() { return mediumTerm; }
         public PCB getRunning() {
         stateLock.acquireUninterruptibly();
         try {
