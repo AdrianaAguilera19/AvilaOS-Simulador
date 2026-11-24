@@ -566,6 +566,28 @@ public class Computer implements Clockable {
     public UtilizationSeries getUtilizationSeries() { return utilizationHistory.snapshot(); }
     public RAM getRam() { return ram; }
         public MediumTermScheduler getMediumTermScheduler() { return mediumTerm; }
+        
+    // S05: lecturas para el planificador de mediano plazo. Se usan solo dentro del ciclo (con el
+    // stateLock ya tomado), por eso no lo toman otra vez.
+
+    /** @return el primer proceso de la cola de nuevos sin sacarlo, o null si esta vacia */
+    public PCB peekNewProcess() { return newQueue.peek(); }
+
+    /** @return cuantos procesos bloqueados hay en la RAM */
+    public int blockedCountInRam() { return blockedQueue.size(); }
+
+    /** @return memoria total que ocupan los procesos bloqueados en la RAM */
+    public int blockedMemoryInRam() {
+        CustomQueue<PCB> copy = blockedQueue.copy();
+        int sum = 0;
+        for (int i = 0; i < copy.size(); i++) {
+            sum += copy.get(i).getMemorySize();
+        }
+        return sum;
+    }
+
+    /** Registra un evento del planificador de mediano plazo en el log del computador. */
+    public void logMediumTerm(String message) { logEvent(message); }
         public PCB getRunning() {
         stateLock.acquireUninterruptibly();
         try {
