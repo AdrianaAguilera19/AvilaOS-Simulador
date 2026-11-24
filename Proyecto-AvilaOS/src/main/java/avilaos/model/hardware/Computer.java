@@ -69,6 +69,9 @@ public class Computer implements Clockable {
     private final CustomQueue<PCB> readyQueue = new CustomQueue<>();    // listos para usar la CPU
     private final CustomQueue<PCB> blockedQueue = new CustomQueue<>();  // esperando E/S o un semaforo
     private final CustomQueue<PCB> finishedQueue = new CustomQueue<>(); // ya terminaron
+        // S03: procesos suspendidos (su imagen esta en el swap, no en la RAM)
+    private final CustomQueue<PCB> readySuspendedQueue = new CustomQueue<>();   // listos/suspendidos
+    private final CustomQueue<PCB> blockedSuspendedQueue = new CustomQueue<>(); // bloqueados/suspendidos
     
     
     // S04/P10: ejecutores de los procesos que usan semáforos (productores y consumidores)
@@ -295,6 +298,8 @@ public class Computer implements Clockable {
         if (expireInQueue(readyQueue, true)) { freedMemory = true; }
         if (expireInQueue(blockedQueue, true)) { freedMemory = true; }
         expireInQueue(newQueue, false);
+                expireInQueue(readySuspendedQueue, false);     // S03: en el swap no ocupan RAM
+        expireInQueue(blockedSuspendedQueue, false);
 
         if (freedMemory) {
             admitFromNewQueue(currentPolicy);   // se libero memoria:
@@ -578,7 +583,8 @@ public class Computer implements Clockable {
         stateLock.acquireUninterruptibly();
         try {
             return new ComputerSnapshot(cpu.getRunning(), cpu.getMode(), newQueue.copy(),
-                    readyQueue.copy(), blockedQueue.copy(), finishedQueue.copy());
+                                readyQueue.copy(), blockedQueue.copy(), finishedQueue.copy(),
+                    readySuspendedQueue.copy(), blockedSuspendedQueue.copy());
         } finally {
             stateLock.release();
         }
@@ -589,6 +595,39 @@ public class Computer implements Clockable {
     public CustomQueue<PCB> getReadySnapshot() { return copyQueue(readyQueue); }
     public CustomQueue<PCB> getBlockedSnapshot() { return copyQueue(blockedQueue); }
     public CustomQueue<PCB> getFinishedSnapshot() { return copyQueue(finishedQueue); }
+        public CustomQueue<PCB> getReadySuspendedSnapshot() { return copyQueue(readySuspendedQueue); }
+    public CustomQueue<PCB> getBlockedSuspendedSnapshot() { return copyQueue(blockedSuspendedQueue); }
+
+    /**
+     * S03: pasa un proceso Bloqueado a Bloqueado/Suspendido (lo saca de la cola de bloqueados).
+     * Solo mueve el proceso entre colas: no toca la RAM ni el swap (eso lo hace el planificador de
+     * mediano plazo, S05). Se llama desde dentro del ciclo del computador, o desde pruebas con ticks manuales.
+     * @param p proceso que se suspende
+     * @return false si la transicion no es valida (el proceso no esta Bloqueado) y no se movio nada
+     */
+    public boolean moveToBlockedSuspended(PCB p) {
+        if (p == null || !p.setState(ProcessState.BLOCKED_SUSPENDED)) {
+            return false;
+        }
+        blockedQueue.remove(p);
+        blockedSuspendedQueue.enqueue(p);
+        return true;
+    }
+
+    /**
+     * S03: pasa un proceso Bloqueado/Suspendido a Listo/Suspendido (ocurrio el evento que esperaba).
+     * Igual que moveToBlockedSuspended, solo mueve entre colas.
+     * @param p proceso cuyo evento ocurrio
+     * @return false si la transicion no es valida y no se movio nada
+     */
+    public boolean moveToReadySuspended(PCB p) {
+        if (p == null || !p.setState(ProcessState.READY_SUSPENDED)) {
+            return false;
+        }
+        blockedSuspendedQueue.remove(p);
+        readySuspendedQueue.enqueue(p);
+        return true;
+    }
 
     private CustomQueue<PCB> copyQueue(CustomQueue<PCB> queue) {
         stateLock.acquireUninterruptibly();

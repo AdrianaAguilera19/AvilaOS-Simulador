@@ -73,6 +73,8 @@ public final class MetricsCalculator {
             }
             addQueue(s.getReadyQueue());
             addQueue(s.getBlockedQueue());
+                        addQueue(s.getReadySuspendedQueue());     // S03: los suspendidos ya fueron admitidos
+            addQueue(s.getBlockedSuspendedQueue());
             CustomQueue<PCB> finished = s.getFinishedQueue();
             for (int i = 0; i < finished.size(); i++) {
                 PCB p = finished.get(i);
