@@ -5,6 +5,7 @@
 package avilaos.os.midterm;
 
 import avilaos.interfaces.Clockable;
+import avilaos.interfaces.VictimPolicy;
 import avilaos.model.hardware.Computer;
 import avilaos.model.process.PCB;
 
@@ -27,6 +28,8 @@ public class MediumTermScheduler implements Clockable {
         private volatile boolean triggerPending = false;   // S05: hay que suspender ahora mismo
     private volatile PCB triggerProcess = null;        // S05: el proceso de Nuevos que no cabe
     private volatile int triggerCount = 0;             // S05: cuantas veces se activo el disparo
+        private volatile PCB victim = null;                // S06: a quien se suspenderia ahora
+    private volatile VictimPolicy victimPolicy = new VictimSelector();   // S06: criterio intercambiable
 
     /**
      * @param computer computador cuyos procesos administra este planificador
@@ -60,9 +63,10 @@ public class MediumTermScheduler implements Clockable {
         PCB waiting = computer.peekNewProcess();
         boolean must = SuspensionTrigger.mustSuspend(waiting, computer.getRam(),
                 computer.blockedCountInRam(), computer.blockedMemoryInRam());
-        if (!must) {
+                if (!must) {
             triggerPending = false;
             triggerProcess = null;
+            victim = null;
             return;
         }
         if (!triggerPending) {
@@ -71,7 +75,13 @@ public class MediumTermScheduler implements Clockable {
             computer.logMediumTerm(waiting.getName() + " (" + waiting.getMemorySize() + ") no cabe en la RAM ("
                     + computer.getRam().getFreeSize() + " libres): hay que suspender un proceso bloqueado");
         }
-        triggerProcess = waiting;
+                triggerProcess = waiting;
+        PCB chosen = victimPolicy.choose(computer.blockedQueueCopy());   // S06
+        if (chosen != null && chosen != victim) {
+            computer.logMediumTerm("Victima de la suspension: " + chosen.getName() + " (prioridad "
+                    + chosen.getPriority() + ", " + chosen.getMemorySize() + " de memoria)");
+        }
+        victim = chosen;
     }
 
     /** @return el computador que administra */
@@ -83,9 +93,10 @@ public class MediumTermScheduler implements Clockable {
     /** Activa o desactiva el planificador; desactivado, el computador funciona sin suspender nada. */
         public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (!enabled) {
+                if (!enabled) {
             triggerPending = false;
             triggerProcess = null;
+            victim = null;
         }
     }
 
@@ -94,6 +105,23 @@ public class MediumTermScheduler implements Clockable {
 
     /** @return el proceso de Nuevos que motiva la suspension, o null si no hay disparo */
     public PCB getTriggerProcess() { return triggerProcess; }
+    
+        /** @return el proceso Bloqueado que se suspenderia ahora (S06), o null si no hay disparo o candidato */
+    public PCB getVictim() { return victim; }
+
+    /** @return el criterio con que se elige a la victima (por defecto, VictimSelector) */
+    public VictimPolicy getVictimPolicy() { return victimPolicy; }
+
+    /**
+     * Cambia el criterio de eleccion de la victima; se aplica desde el proximo ciclo.
+     * @param policy nuevo criterio (no puede ser null)
+     */
+    public void setVictimPolicy(VictimPolicy policy) {
+        if (policy == null) {
+            throw new IllegalArgumentException("El criterio de victima no puede ser nulo");
+        }
+        this.victimPolicy = policy;
+    }
 
     /** @return cuantas veces se activo el disparo de suspension */
     public int getTriggerCount() { return triggerCount; }
