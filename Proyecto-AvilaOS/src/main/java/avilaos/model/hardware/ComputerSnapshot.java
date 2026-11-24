@@ -16,16 +16,21 @@ public final class ComputerSnapshot {
     private final CustomQueue<PCB> readyQueue;
     private final CustomQueue<PCB> blockedQueue;
     private final CustomQueue<PCB> finishedQueue;
+        private final CustomQueue<PCB> readySuspendedQueue;
+    private final CustomQueue<PCB> blockedSuspendedQueue;
 
     public ComputerSnapshot(PCB running, ExecutionMode mode, CustomQueue<PCB> newQueue,
                             CustomQueue<PCB> readyQueue, CustomQueue<PCB> blockedQueue,
-                            CustomQueue<PCB> finishedQueue) {
+                                                        CustomQueue<PCB> finishedQueue, CustomQueue<PCB> readySuspendedQueue,
+                            CustomQueue<PCB> blockedSuspendedQueue) {
         this.running = running;
         this.mode = mode;
         this.newQueue = newQueue;
         this.readyQueue = readyQueue;
         this.blockedQueue = blockedQueue;
         this.finishedQueue = finishedQueue;
+                this.readySuspendedQueue = readySuspendedQueue;
+        this.blockedSuspendedQueue = blockedSuspendedQueue;
     }
 
     /** @return proceso en la CPU, o null si la CPU esta libre */
@@ -35,10 +40,13 @@ public final class ComputerSnapshot {
     public CustomQueue<PCB> getReadyQueue() { return readyQueue; }
     public CustomQueue<PCB> getBlockedQueue() { return blockedQueue; }
     public CustomQueue<PCB> getFinishedQueue() { return finishedQueue; }
+        public CustomQueue<PCB> getReadySuspendedQueue() { return readySuspendedQueue; }
+    public CustomQueue<PCB> getBlockedSuspendedQueue() { return blockedSuspendedQueue; }
 
     /** @return cantidad total de procesos de este computador (CPU + todas las colas) */
     public int totalProcesses() {
         return (running == null ? 0 : 1) + newQueue.size() + readyQueue.size()
-                + blockedQueue.size() + finishedQueue.size();
+                                + blockedQueue.size() + finishedQueue.size()
+                + readySuspendedQueue.size() + blockedSuspendedQueue.size();
     }
 }
