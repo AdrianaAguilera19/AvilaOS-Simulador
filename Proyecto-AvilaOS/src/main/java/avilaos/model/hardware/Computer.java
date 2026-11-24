@@ -27,6 +27,7 @@ import avilaos.enums.StepKind;
 import avilaos.interfaces.MemoryAdmission;
 import avilaos.os.midterm.FifoMemoryAdmission;
 import avilaos.os.midterm.MediumTermScheduler;
+import avilaos.os.midterm.VictimSelector;
 
 /**
  * Un computador del cluster. Cada instancia tiene sus propias colas y su
@@ -573,18 +574,34 @@ public class Computer implements Clockable {
     /** @return el primer proceso de la cola de nuevos sin sacarlo, o null si esta vacia */
     public PCB peekNewProcess() { return newQueue.peek(); }
 
-    /** @return cuantos procesos bloqueados hay en la RAM */
-    public int blockedCountInRam() { return blockedQueue.size(); }
+    
 
-    /** @return memoria total que ocupan los procesos bloqueados en la RAM */
+        /** @return cuantos procesos bloqueados en la RAM se pueden suspender (ver VictimSelector) */
+    public int blockedCountInRam() {
+        CustomQueue<PCB> copy = blockedQueue.copy();
+        int count = 0;
+        for (int i = 0; i < copy.size(); i++) {
+            if (VictimSelector.isEligible(copy.get(i))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** @return memoria total que ocupan los procesos bloqueados que se pueden suspender */
     public int blockedMemoryInRam() {
         CustomQueue<PCB> copy = blockedQueue.copy();
         int sum = 0;
         for (int i = 0; i < copy.size(); i++) {
-            sum += copy.get(i).getMemorySize();
+            if (VictimSelector.isEligible(copy.get(i))) {
+                sum += copy.get(i).getMemorySize();
+            }
         }
         return sum;
     }
+
+    /** S06: copia de la cola de bloqueados en RAM, en orden de bloqueo. Solo dentro del ciclo. */
+    public CustomQueue<PCB> blockedQueueCopy() { return blockedQueue.copy(); }
 
     /** Registra un evento del planificador de mediano plazo en el log del computador. */
     public void logMediumTerm(String message) { logEvent(message); }
