@@ -120,7 +120,9 @@ public class DiskScheduler {
     /** Termina la solicitud en servicio y despierta al proceso que la pidio. */
     public DiskRequest completeCurrent() {
         DiskRequest done = queue.finishService();
-        waker.wake(done.getRequester());
+                if (!done.getOperation().isSwapOperation()) {
+            waker.wake(done.getRequester());   // las de swap las cierra el planificador de mediano plazo
+        }
         return done;
     }
 }

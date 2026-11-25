@@ -198,6 +198,13 @@ public final class DiskIoCoordinator implements Clockable, DiskListener {
     @Override
     public void onServiceFinished(DiskRequest request, long startCycle, long endCycle, int headBefore) {
         recordLog.onServiceFinished(request, startCycle, endCycle, headBefore);
+        
+        // S07: SUSPEND/REACTIVATE no son de un proceso de E/S: las cierra el planificador de mediano plazo
+        if (request.getOperation().isSwapOperation()) {
+            computer.getMediumTermScheduler().onSwapServiceFinished(request);
+            diskScheduler.completeCurrent();
+            return;
+        }
 
         PCB pcb = request.getRequester();
         DiskIoProcessRunner runner = findRunner(pcb);
