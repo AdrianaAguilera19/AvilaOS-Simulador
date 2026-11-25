@@ -684,6 +684,47 @@ public class Computer implements Clockable {
         admitFromNewQueue(policy);   // con la memoria liberada, revisa si ya cabe el que esperaba
         return true;
     }
+    
+        /** S09: copia de la cola de Listo/Suspendido, en orden de llegada. Solo dentro del ciclo. */
+    public CustomQueue<PCB> readySuspendedQueueCopy() { return readySuspendedQueue.copy(); }
+
+    /** S09: memoria libre de la RAM ahora mismo. Solo dentro del ciclo. */
+    public int freeRam() { return ram.getFreeSize(); }
+
+    /**
+     * S09: reserva en la RAM el lugar de un proceso suspendido que se va a traer del swap. Se reserva
+     * al pedir la lectura para que ningun otro proceso ocupe ese espacio mientras el disco lee.
+     * @return false si no hay memoria libre suficiente
+     */
+    public boolean reserveRamForReactivation(PCB p) {
+        return p != null && ram.allocate(p.getMemorySize());
+    }
+
+    /**
+     * S09: cierra la reactivacion cuando el disco termino de leer la imagen del swap: el proceso
+     * pasa de Listo/Suspendido a Listo y vuelve a competir por la CPU. Su RAM ya estaba reservada.
+     * Se llama desde dentro del ciclo del computador.
+     * @return false si el proceso ya no estaba Listo/Suspendido (vencio mientras se leia); en ese caso
+     *         se devuelve la RAM que se habia reservado
+     */
+    public boolean completeReactivation(PCB p) {
+        if (p == null) {
+            return false;
+        }
+        if (p.getState() != ProcessState.READY_SUSPENDED || !readySuspendedQueue.contains(p)
+                || !p.setState(ProcessState.READY)) {
+            ram.release(p.getMemorySize());
+            logEvent(p.getName() + " ya no estaba suspendido al terminar su lectura: se devuelve su memoria reservada");
+            admitFromNewQueue(policy);
+            return false;
+        }
+        readySuspendedQueue.remove(p);
+        p.setBlockReason(BlockReason.NONE);
+        policy.addToReady(readyQueue, p);
+        logEvent(p.getName() + " vuelve del swap a la RAM (Listo/Suspendido -> Listo) y ocupa "
+                + p.getMemorySize() + " de memoria");
+        return true;
+    }
 
     /**
      * S03: pasa un proceso Bloqueado/Suspendido a Listo/Suspendido (ocurrio el evento que esperaba).
