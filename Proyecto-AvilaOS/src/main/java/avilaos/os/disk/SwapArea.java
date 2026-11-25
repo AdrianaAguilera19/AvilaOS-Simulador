@@ -108,6 +108,21 @@ public class SwapArea {
         }
         return chain;
     }
+    
+    
+    /**
+     * Primer bloque de swap que ocupa ese proceso (el menor), o -1 si no tiene ninguno.
+     * Es el bloque al que apunta la solicitud de lectura al reactivarlo.
+     */
+    public int firstBlockOf(String processId) {
+        BlockInfo[] all = map.snapshot();
+        for (int i = firstBlock; i < firstBlock + size; i++) {
+            if (isOwnedBy(all[i], processId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
     /** Libera todos los bloques de swap de ese proceso. Devuelve cuantos libero. */
     public int release(String processId) {

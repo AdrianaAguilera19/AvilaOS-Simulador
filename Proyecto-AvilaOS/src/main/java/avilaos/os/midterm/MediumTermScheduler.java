@@ -48,6 +48,9 @@ public class MediumTermScheduler implements Clockable {
     private volatile int abortedSuspensions = 0;       // escrituras cuyo proceso ya no estaba suspendible
     private volatile int swapFullCount = 0;            // veces que no se pudo suspender por falta de swap
     private boolean swapFullWarned = false;            // para avisar una sola vez por cada falta de swap
+        private PCB reactivating = null;                   // S09: proceso cuya lectura del swap esta en curso
+    private volatile int reactivationCount = 0;        // S09: reactivaciones completadas
+    private volatile int abortedReactivations = 0;     // S09: lecturas cuyo proceso ya no estaba suspendido
 
     /**
      * @param computer computador cuyos procesos administra este planificador
@@ -73,7 +76,7 @@ public class MediumTermScheduler implements Clockable {
         ticksSeen++;
                 evaluateTrigger();
                 startSuspensionIfNeeded();   // S07
-        // S09 se enchufa aqui
+                startReactivationIfPossible();   // S09
     }
         /**
      * S05: mira al primer proceso de Nuevos (el que la admision no pudo meter) y decide si hay que
@@ -176,6 +179,56 @@ public class MediumTermScheduler implements Clockable {
             completedLock.release();
         }
     }
+    
+        /**
+     * S09: si hay procesos en Listo/Suspendido, ninguna operacion de swap en curso, no hay un
+     * proceso nuevo esperando que obligue a suspender, y a alguno le alcanza la memoria libre, pide
+     * leerlo del swap. Se elige al primero de la cola (orden de llegada) que quepa. Reserva su lugar
+     * en la RAM desde ya y manda una solicitud REACTIVATE al disco; el proceso vuelve a Listo cuando
+     * el disco termina de leer (ver finishReactivation).
+     */
+    private void startReactivationIfPossible() {
+        SwapArea area = swap;
+        DiskQueue queue = diskQueue;
+        if (area == null || queue == null || reactivating != null || inFlightVictim != null || triggerPending) {
+            return;
+        }
+        avilaos.datastructures.CustomQueue<PCB> candidates = computer.readySuspendedQueueCopy();
+        for (int i = 0; i < candidates.size(); i++) {
+            PCB p = candidates.get(i);
+            String key = String.valueOf(p.getId());
+            int first = area.firstBlockOf(key);
+            if (first < 0 || p.getMemorySize() > computer.freeRam()) {
+                continue;
+            }
+            if (!computer.reserveRamForReactivation(p)) {
+                continue;
+            }
+            queue.add(new DiskRequest(first, IOOperationType.REACTIVATE, p, lastCycle, p.getMemorySize()));
+            reactivating = p;
+            computer.logMediumTerm("Se reactiva al proceso " + p.getName() + ": lee " + p.getMemorySize()
+                    + " bloques del swap (desde el bloque " + first + ")");
+            return;
+        }
+    }
+
+    /** S09: el disco termino de leer: el proceso vuelve a Listo y se liberan sus bloques de swap. */
+    private void finishReactivation(PCB p) {
+        boolean ok = computer.completeReactivation(p);
+        int freed = swap != null ? swap.release(String.valueOf(p.getId())) : 0;
+        if (ok) {
+            reactivationCount++;
+            computer.logMediumTerm("Reactivacion de " + p.getName() + " completa: se liberan " + freed
+                    + " bloques de swap");
+        } else {
+            abortedReactivations++;
+            computer.logMediumTerm("Se cancela la reactivacion de " + p.getName() + " (se devuelven " + freed
+                    + " bloques de swap)");
+        }
+        if (p == reactivating) {
+            reactivating = null;
+        }
+    }
 
     /**
      * S07: cierra las suspensiones cuya escritura termino. Si la victima sigue Bloqueada en RAM,
@@ -186,6 +239,10 @@ public class MediumTermScheduler implements Clockable {
         DiskRequest done;
         while ((done = pollCompletedSwap()) != null) {
             PCB p = done.getRequester();
+                        if (done.getOperation() == IOOperationType.REACTIVATE) {
+                finishReactivation(p);
+                continue;
+            }
             if (computer.completeSuspension(p)) {
                 suspensionCount++;
             } else {
@@ -272,4 +329,13 @@ public class MediumTermScheduler implements Clockable {
 
     /** @return el ultimo ciclo que atendio, o -1 si todavia no atendio ninguno */
     public long getLastCycle() { return lastCycle; }
+    
+        /** @return reactivaciones completadas (procesos traidos de vuelta del swap) */
+    public int getReactivationCount() { return reactivationCount; }
+
+    /** @return lecturas del swap canceladas porque el proceso ya no estaba suspendido (vencio) */
+    public int getAbortedReactivations() { return abortedReactivations; }
+
+    /** @return proceso cuya lectura del swap esta en curso, o null */
+    public PCB getReactivating() { return reactivating; }
 }
