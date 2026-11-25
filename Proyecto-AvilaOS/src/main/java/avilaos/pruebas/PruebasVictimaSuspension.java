@@ -69,7 +69,7 @@ public class PruebasVictimaSuspension {
         check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.IO)), "un Bloqueado por E/S simulada es elegible");
         check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.MUTEX)), "un Bloqueado en un semaforo es elegible");
         check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.NETWORK_LATENCY)), "un Bloqueado por red es elegible");
-        check(!VictimSelector.isEligible(bloqueado("A", 1, BlockReason.DISK_IO)), "uno que espera al disco no es elegible");
+        check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.DISK_IO)), "uno que espera al disco tambien es elegible (S08)");
         PCB listo = ProcessFactory.createCpuBound("L", 1, 10, 50, 500, 1, 0);
         listo.setState(ProcessState.READY);
         check(!VictimSelector.isEligible(listo), "un Listo no es elegible");
@@ -107,9 +107,10 @@ public class PruebasVictimaSuspension {
         check(SEL.choose(new CustomQueue<PCB>()) == null, "cola vacia: no hay victima");
         PCB d1 = bloqueado("D1", 5, BlockReason.DISK_IO);
         PCB d2 = bloqueado("D2", 9, BlockReason.DISK_IO);
-        check(SEL.choose(cola(d1, d2)) == null, "si todos esperan al disco, no hay victima");
-        PCB ok = bloqueado("Ok", 1, BlockReason.IO);
-        check(SEL.choose(cola(d2, ok)) == ok, "se salta al que espera al disco aunque tenga peor prioridad");
+        check(SEL.choose(cola(d1, d2)) == d2, "entre dos que esperan al disco, gana el de menor prioridad (9)");
+        PCB listo = ProcessFactory.createCpuBound("L", 9, 10, 50, 500, 1, 0);
+        listo.setState(ProcessState.READY);
+        check(SEL.choose(cola(listo)) == null, "un proceso Listo no es candidato: solo se suspende a Bloqueados");
     }
 
     private static void noModificaLaCola() {
