@@ -136,6 +136,7 @@ public final class SimulationSetup {
         }
 
         DiskQueue diskQueue = new DiskQueue();
+                computer.getMediumTermScheduler().attachSwap(fsData.getSwapArea(), diskQueue);   // S07
         DiskScheduler diskScheduler = new DiskScheduler(
                 diskQueue,
                 DiskPolicyFactory.create(processConfig.getInitialDiskPolicy()),

@@ -655,6 +655,27 @@ public class Computer implements Clockable {
         blockedSuspendedQueue.enqueue(p);
         return true;
     }
+    
+        /**
+     * S07: cierra la suspension de un proceso cuando el disco termino de escribir su imagen en el swap:
+     * pasa a Bloqueado/Suspendido, se libera su RAM y se revisa la cola de Nuevos. Se llama desde dentro
+     * del ciclo del computador.
+     * @param p proceso que se suspendio
+     * @return false si el proceso ya no estaba Bloqueado en la RAM (desperto o vencio mientras se escribia)
+     */
+    public boolean completeSuspension(PCB p) {
+        if (p == null || p.getState() != ProcessState.BLOCKED || !blockedQueue.contains(p)) {
+            return false;
+        }
+        if (!moveToBlockedSuspended(p)) {
+            return false;
+        }
+        ram.release(p.getMemorySize());
+        logEvent(p.getName() + " queda suspendido (Bloqueado/Suspendido) y libera " + p.getMemorySize()
+                + " de memoria");
+        admitFromNewQueue(policy);   // con la memoria liberada, revisa si ya cabe el que esperaba
+        return true;
+    }
 
     /**
      * S03: pasa un proceso Bloqueado/Suspendido a Listo/Suspendido (ocurrio el evento que esperaba).

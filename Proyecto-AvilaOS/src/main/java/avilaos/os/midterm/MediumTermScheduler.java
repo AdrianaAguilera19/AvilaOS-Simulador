@@ -4,10 +4,17 @@
  */
 package avilaos.os.midterm;
 
+import avilaos.datastructures.BlockChain;
+import avilaos.datastructures.CustomQueue;
+import avilaos.enums.IOOperationType;
 import avilaos.interfaces.Clockable;
 import avilaos.interfaces.VictimPolicy;
 import avilaos.model.hardware.Computer;
 import avilaos.model.process.PCB;
+import avilaos.os.disk.DiskQueue;
+import avilaos.os.disk.DiskRequest;
+import avilaos.os.disk.SwapArea;
+import java.util.concurrent.Semaphore;
 
 /**
  * S04: planificador de mediano plazo de un computador. Es un componente que reacciona al reloj
@@ -29,7 +36,18 @@ public class MediumTermScheduler implements Clockable {
     private volatile PCB triggerProcess = null;        // S05: el proceso de Nuevos que no cabe
     private volatile int triggerCount = 0;             // S05: cuantas veces se activo el disparo
         private volatile PCB victim = null;                // S06: a quien se suspenderia ahora
-    private volatile VictimPolicy victimPolicy = new VictimSelector();   // S06: criterio intercambiable
+    private volatile VictimPolicy victimPolicy = new VictimSelector();   // S06: criterio intercambiable4
+    
+    // S07: suspension como operacion de E/S de disco
+    private volatile SwapArea swap = null;             // area de swap (null: no hay, no se suspende)
+    private volatile DiskQueue diskQueue = null;       // cola unica de E/S del disco
+    private PCB inFlightVictim = null;                 // victima cuya escritura al swap esta en curso
+    private final CustomQueue<DiskRequest> completedSwap = new CustomQueue<>();   // escrituras terminadas
+    private final Semaphore completedLock = new Semaphore(1);   // el disco y el computador la tocan
+    private volatile int suspensionCount = 0;          // suspensiones completadas
+    private volatile int abortedSuspensions = 0;       // escrituras cuyo proceso ya no estaba suspendible
+    private volatile int swapFullCount = 0;            // veces que no se pudo suspender por falta de swap
+    private boolean swapFullWarned = false;            // para avisar una sola vez por cada falta de swap
 
     /**
      * @param computer computador cuyos procesos administra este planificador
@@ -47,13 +65,15 @@ public class MediumTermScheduler implements Clockable {
      */
     @Override
     public void onTick(long cycle) {
+                processCompletedSwap();   // S07: las escrituras al swap que el disco ya termino se cierran siempre
         if (!enabled) {
             return;
         }
         lastCycle = cycle;
         ticksSeen++;
                 evaluateTrigger();
-        // S06, S07 y S09 se enchufan aqui
+                startSuspensionIfNeeded();   // S07
+        // S09 se enchufa aqui
     }
         /**
      * S05: mira al primer proceso de Nuevos (el que la admision no pudo meter) y decide si hay que
@@ -67,6 +87,7 @@ public class MediumTermScheduler implements Clockable {
             triggerPending = false;
             triggerProcess = null;
             victim = null;
+            swapFullWarned = false;
             return;
         }
         if (!triggerPending) {
@@ -83,6 +104,126 @@ public class MediumTermScheduler implements Clockable {
         }
         victim = chosen;
     }
+    
+        /**
+     * S07: si el disparo esta activo, hay victima y no hay otra suspension en curso, pide la
+     * escritura de la victima al swap. Antes comprueba que el swap tenga lugar (S05/S11): si no, no
+     * suspende y el proceso nuevo sigue esperando. La RAM de la victima NO se libera aqui: se libera
+     * cuando el disco termina la escritura (ver processCompletedSwap).
+     */
+    private void startSuspensionIfNeeded() {
+        if (!triggerPending || victim == null || inFlightVictim != null) {
+            return;
+        }
+        int blocks = victim.getMemorySize();
+        SwapArea area = swap;
+        DiskQueue queue = diskQueue;
+        if (area == null || queue == null) {
+            warnSwapFull("no hay area de swap configurada");
+            return;
+        }
+        if (area.freeBlocks() < blocks) {
+            warnSwapFull("necesita " + blocks + " bloques y el swap tiene " + area.freeBlocks() + " libres");
+            return;
+        }
+        BlockChain chain = area.reserve(String.valueOf(victim.getId()), blocks);
+        if (chain == null) {
+            warnSwapFull("no hay " + blocks + " bloques de swap disponibles");
+            return;
+        }
+        DiskRequest request = new DiskRequest(chain.first(), IOOperationType.SUSPEND, victim, lastCycle, blocks);
+        queue.add(request);
+        inFlightVictim = victim;
+        swapFullWarned = false;
+        computer.logMediumTerm("Se suspende al proceso " + victim.getName() + " para admitir a "
+                + triggerProcess.getName() + ": escribe " + blocks + " bloques en el swap (desde el bloque "
+                + chain.first() + ")");
+    }
+
+    /** Avisa (una sola vez por cada falta) que no se pudo suspender por falta de swap. */
+    private void warnSwapFull(String reason) {
+        if (swapFullWarned) {
+            return;
+        }
+        swapFullWarned = true;
+        swapFullCount++;
+        computer.logMediumTerm("No se suspende a " + victim.getName() + " (swap lleno: " + reason + "): "
+                + triggerProcess.getName() + " espera en Nuevos");
+    }
+
+    /**
+     * Lo llama el coordinador de E/S cuando el disco termina una solicitud SUSPEND. Solo deja el
+     * aviso: el cambio de colas lo hace el computador en su proximo ciclo, igual que los despertares.
+     * @param request solicitud de swap que el disco acaba de atender
+     */
+    public void onSwapServiceFinished(DiskRequest request) {
+        if (request == null) {
+            return;
+        }
+        completedLock.acquireUninterruptibly();
+        try {
+            completedSwap.enqueue(request);
+        } finally {
+            completedLock.release();
+        }
+    }
+
+    private DiskRequest pollCompletedSwap() {
+        completedLock.acquireUninterruptibly();
+        try {
+            return completedSwap.dequeue();
+        } finally {
+            completedLock.release();
+        }
+    }
+
+    /**
+     * S07: cierra las suspensiones cuya escritura termino. Si la victima sigue Bloqueada en RAM,
+     * pasa a Bloqueado/Suspendido y se libera su RAM. Si ya no (desperto o vencio su deadline
+     * mientras se escribia), se cancela y se devuelven los bloques de swap.
+     */
+    private void processCompletedSwap() {
+        DiskRequest done;
+        while ((done = pollCompletedSwap()) != null) {
+            PCB p = done.getRequester();
+            if (computer.completeSuspension(p)) {
+                suspensionCount++;
+            } else {
+                int freed = swap != null ? swap.release(String.valueOf(p.getId())) : 0;
+                abortedSuspensions++;
+                computer.logMediumTerm("Se cancela la suspension de " + p.getName()
+                        + ": ya no estaba bloqueado en RAM (se devuelven " + freed + " bloques de swap)");
+            }
+            if (p == inFlightVictim) {
+                inFlightVictim = null;
+            }
+        }
+    }
+
+    /**
+     * Conecta el planificador con el swap y la cola del disco. Sin esto no se suspende nada.
+     * @param swap area de swap (puede ser null si no hay)
+     * @param diskQueue cola unica de E/S del disco, por donde pasan las solicitudes de suspension
+     */
+    public void attachSwap(SwapArea swap, DiskQueue diskQueue) {
+        if (swap != null && diskQueue == null) {
+            throw new IllegalArgumentException("Con swap hace falta la cola del disco");
+        }
+        this.swap = swap;
+        this.diskQueue = diskQueue;
+    }
+
+    /** @return suspensiones completadas */
+    public int getSuspensionCount() { return suspensionCount; }
+
+    /** @return escrituras al swap canceladas porque el proceso ya no estaba suspendible */
+    public int getAbortedSuspensions() { return abortedSuspensions; }
+
+    /** @return veces que no se pudo suspender por falta de swap */
+    public int getSwapFullCount() { return swapFullCount; }
+
+    /** @return proceso cuya escritura al swap esta en curso, o null */
+    public PCB getInFlightVictim() { return inFlightVictim; }
 
     /** @return el computador que administra */
     public Computer getComputer() { return computer; }
