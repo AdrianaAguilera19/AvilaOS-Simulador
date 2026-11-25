@@ -544,7 +544,15 @@ public class Computer implements Clockable {
                                 recordSemaphoreWait(p);   // S10: cuanto estuvo bloqueado en el semaforo
                 p.setBlockReason(BlockReason.NONE);
                 p.setState(ProcessState.READY);
-                currentPolicy.addToReady(readyQueue, p);
+                                currentPolicy.addToReady(readyQueue, p);
+            } else if (blockedSuspendedQueue.contains(p)) {
+                // S08: el proceso estaba suspendido en el swap y ocurrio el evento que esperaba:
+                // pasa a Listo/Suspendido (para volver a la RAM hay que reactivarlo, S09)
+                logEvent(p.getName() + " (suspendido) termina su espera (" + p.getBlockReason()
+                        + ") y pasa a Listo/Suspendido");
+                recordSemaphoreWait(p);
+                p.setBlockReason(BlockReason.NONE);
+                moveToReadySuspended(p);
             }
         }
     }

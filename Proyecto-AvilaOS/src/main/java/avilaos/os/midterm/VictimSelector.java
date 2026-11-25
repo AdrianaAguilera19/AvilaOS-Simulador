@@ -5,7 +5,6 @@
 package avilaos.os.midterm;
 
 import avilaos.datastructures.CustomQueue;
-import avilaos.enums.BlockReason;
 import avilaos.enums.ProcessState;
 import avilaos.interfaces.VictimPolicy;
 import avilaos.model.process.PCB;
@@ -28,8 +27,8 @@ import avilaos.model.process.PCB;
  *    asi que su imagen estara menos tiempo "fuera de lugar" en el swap.
  *  - Desempatar por la posicion en la cola es determinista y evita inanicion de los recien bloqueados.
  *
- * No son elegibles los procesos cuya E/S de disco esta en curso (BlockReason.DISK_IO): su solicitud
- * ya esta en la cola del disco y al terminar espera encontrarlo en la RAM.
+ * Se puede suspender a cualquier Bloqueado, tambien al que espera una operacion de disco (DISK_IO): su
+ * solicitud sigue en la cola del disco y, cuando termina, el proceso pasa a Listo/Suspendido (S08).
  */
 public class VictimSelector implements VictimPolicy {
 
@@ -40,10 +39,10 @@ public class VictimSelector implements VictimPolicy {
 
     /**
      * @param p proceso a revisar
-     * @return true si el proceso se puede suspender: esta Bloqueado y no espera al disco
+     * @return true si el proceso se puede suspender: esta Bloqueado en la RAM
      */
     public static boolean isEligible(PCB p) {
-        return p != null && p.getState() == ProcessState.BLOCKED && p.getBlockReason() != BlockReason.DISK_IO;
+        return p != null && p.getState() == ProcessState.BLOCKED;
     }
 
     @Override
