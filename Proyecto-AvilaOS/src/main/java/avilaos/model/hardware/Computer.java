@@ -65,6 +65,7 @@ public class Computer implements Clockable {
     private final RAM ram;
     private volatile MemoryAdmission admission = new FifoMemoryAdmission();
         private final MediumTermScheduler mediumTerm = new MediumTermScheduler(this);   // S04
+        private PCB heldBackNew = null; // s10 : el nuevo al que ya se le avisó en el log que espera a los suspendidos
 
     // Colas propias de este computador
     private final CustomQueue<PCB> newQueue = new CustomQueue<>();      // procesos que acaban de llegar
@@ -353,7 +354,16 @@ public class Computer implements Clockable {
      * esta en MemoryAdmission (por defecto FifoMemoryAdmission).
      */
     private void admitFromNewQueue(SchedulingPolicy currentPolicy) {
-        admission.admit(newQueue, readyQueue, ram, currentPolicy);
+       if (!readySuspendedQueue.isEmpty()){
+           PCB waiting = newQueue.peek();
+           if(waiting!=null && waiting!= heldBackNew){
+               heldBackNew = waiting;
+               logEvent(waiting.getName()+ " espera en Nuevos: primero se reactivan los procesos Listo/Suspendido");
+           }
+           return;
+       }
+       heldBackNew = null;
+       admission.admit(newQueue, readyQueue, ram, currentPolicy);
     }
 
     /**
@@ -687,6 +697,11 @@ public class Computer implements Clockable {
     
         /** S09: copia de la cola de Listo/Suspendido, en orden de llegada. Solo dentro del ciclo. */
     public CustomQueue<PCB> readySuspendedQueueCopy() { return readySuspendedQueue.copy(); }
+    
+    /** S10: true si hay algun proceso en Listo/Suspendido (tiene prioridad sobre los Nuevos). Solo dentro del ciclo */
+    public boolean hasReadySuspended(){
+        return !readySuspendedQueue.isEmpty();
+    }
 
     /** S09: memoria libre de la RAM ahora mismo. Solo dentro del ciclo. */
     public int freeRam() { return ram.getFreeSize(); }
