@@ -50,7 +50,7 @@ public class PruebasReactivacion {
         deAUnoYEnOrden();
         eligeElPrimeroQueCabe();
         venceMientrasSeLee();
-        noCompiteConUnaSuspension();
+        suspendidosVanAntesQueUnNuevo();
         cicloCompleto();
 
         System.out.println();
@@ -158,6 +158,7 @@ public class PruebasReactivacion {
         titulo("No cabe: espera hasta que se libere memoria");
         Entorno e = new Entorno(30);
         PCB z = e.cpu("Z", 25, 12);
+        e.tick();
         PCB a = e.suspendido("A", 20, 5000);
         e.ticks(5);
         check(z.getState() != ProcessState.TERMINATED, "Z (25) sigue ocupando la RAM");
@@ -196,6 +197,7 @@ public class PruebasReactivacion {
         titulo("Se reactiva al primero que quepa");
         Entorno e = new Entorno(30);
         e.cpu("Z", 10, 5000);
+        e.tick();
         PCB grande = e.suspendido("Grande", 25, 5000);
         PCB chico = e.suspendido("Chico", 15, 5000);
         e.tick();
@@ -224,21 +226,22 @@ public class PruebasReactivacion {
         check(e.mts.getReactivating() == null, "no queda reactivacion en curso");
     }
 
-    private static void noCompiteConUnaSuspension() {
-        titulo("No se reactiva mientras hay que suspender para admitir a un nuevo");
+    private static void suspendidosVanAntesQueUnNuevo(){
+        titulo ("con un Listo/Suspendido esperando, un Nuevo que no cabe no obliga a suspender");
         Entorno e = new Entorno(30);
-        PCB v = ProcessFactory.createIoBound("V", 5, 20, 500, 1, 5000, 5000, e.pc.getId(), 0);
+        PCB v= ProcessFactory.createIoBound("V", 5, 20, 500, 1, 5000, 5000, e.pc.getId(), 0);
         e.pc.admit(v);
-        for (int i = 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++) {
+        for (int i= 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++){
             e.tick();
         }
-        PCB a = e.suspendido("A", 10, 5000);   // cabria en los 10 libres
-        e.cpu("N", 20, 500);                    // pero N no cabe y obliga a suspender a V
+        PCB a = e.suspendido("A", 10, 5000); // cabe en los 10 libres
+        PCB n = e.cpu("N", 20, 500); //N no cabe, pero A va antes
         e.tick();
-        check(e.mts.isTriggerPending(), "N no cabe: hay que suspender a V");
-        boolean hayLectura = e.esReactivacion(e.pedido());
-        check(!hayLectura, "no se pide la lectura de A mientras el disparo de suspension esta activo");
-        check(a.getState() == ProcessState.READY_SUSPENDED, "A sigue en el swap");
+        check(!e.mts.isTriggerPending(), "no hay disparo de suspension: A va antes que N");
+        check (e.esReactivacion(e.pedido()) && e.pedido().getRequester() == a, "se impide la lectura de A");
+        check (v.getState() == ProcessState.BLOCKED, "V no se suspende para admitir a N");
+        check(n.getState() == ProcessState.NEW, "N sigue esperando en Nuevos");
+        
     }
 
     private static void cicloCompleto() {
