@@ -20,6 +20,10 @@ import avilaos.model.process.PCB;
  *  - Tiempo de respuesta promedio: (ciclo de primera ejecucion - ciclo de llegada), promediado sobre
  *    los procesos que ya usaron la CPU al menos una vez.
  *  - Cumplimiento de deadlines: completados / (completados + terminados por deadline).
+ * 
+ *  *  - Suspensiones y reactivaciones (S14): cuantas veces el planificador de mediano plazo termino de
+ *    suspender un proceso (escritura al swap completada) y de reactivarlo (lectura del swap completada).
+ *    En el sistema: suma de todos los computadores.
  *  - Equidad: indice de Jain  J = (suma x)^2 / (n * suma x^2), donde x es el progreso de cada proceso
  *    admitido (no cuenta los que siguen en Nuevos): 1.0 si termino normalmente; si no,
  *    instrucciones ejecutadas / instrucciones totales. J=1 si todos avanzan igual; baja si alguno se queda sin CPU.
@@ -62,11 +66,15 @@ public final class MetricsCalculator {
         private int admitted;
         private double sumX;
         private double sumX2;
+                private int suspensions;      // S14
+        private int reactivations;    // S14
 
         void add(Computer computer) {
             ComputerSnapshot s = computer.takeSnapshot();   // foto consistente (P09)
             busyCycles += computer.getCpu().getBusyCycles();
             totalCycles += computer.getCpu().getTotalCycles();
+                        suspensions += computer.getMediumTermScheduler().getSuspensionCount();       // S14
+            reactivations += computer.getMediumTermScheduler().getReactivationCount();   // S14
 
             if (s.getRunning() != null) {
                 addProcess(s.getRunning());
@@ -128,7 +136,7 @@ public final class MetricsCalculator {
                 fairness = (sumX * sumX) / (admitted * sumX2);
             }
             return new Metrics(label, cycles, completed, missed, throughput, utilization,
-                    avgResponse, compliance, fairness);
+                                        avgResponse, compliance, fairness, suspensions, reactivations);
         }
     }
 }
