@@ -337,6 +337,7 @@ public class Computer implements Clockable {
      * lo marca, lo pasa a terminados y libera su memoria si la tenia
      */
     private void terminateByDeadline(PCB p, boolean hasRam) {
+                boolean wasSuspended = p.getState().isSuspended();   // S13: si estaba suspendido, hay que soltar su swap
         p.setState(ProcessState.TERMINATED);
         p.markDeadlineMissed();
                 if (p.getWaitingOn() != null) {
@@ -344,6 +345,9 @@ public class Computer implements Clockable {
         }
         finishedQueue.enqueue(p);
                 logEvent(p.getName() + " terminado por vencimiento de su deadline");   // S11
+                        if (wasSuspended) {
+            mediumTerm.releaseSwapOfExpired(p);   // S13: no dejar bloques de swap huerfanos
+        }
         if (hasRam) {
             ram.release(p.getMemorySize());
         }
