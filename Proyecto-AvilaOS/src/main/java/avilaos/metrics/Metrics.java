@@ -18,10 +18,12 @@ public final class Metrics {
     private final double avgResponseTime;
     private final double deadlineCompliance;
     private final double fairness;
+        private final int suspensions;      // S14: suspensiones completadas
+    private final int reactivations;    // S14: reactivaciones completadas
 
     public Metrics(String label, long cycles, int completed, int missedDeadline, double throughput,
                    double cpuUtilization, double avgResponseTime, double deadlineCompliance,
-                   double fairness) {
+                                      double fairness, int suspensions, int reactivations) {
         this.label = label;
         this.cycles = cycles;
         this.completed = completed;
@@ -31,6 +33,8 @@ public final class Metrics {
         this.avgResponseTime = avgResponseTime;
         this.deadlineCompliance = deadlineCompliance;
         this.fairness = fairness;
+                this.suspensions = suspensions;
+        this.reactivations = reactivations;
     }
 
     /** @return nombre del computador, o "Sistema" para las metricas globales */
@@ -51,14 +55,19 @@ public final class Metrics {
     public double getDeadlineCompliance() { return deadlineCompliance; }
     /** @return indice de equidad de Jain, de 1/n (injusto) a 1.0 (equitativo); NaN si no hay procesos admitidos */
     public double getFairness() { return fairness; }
+    
+        /** @return veces que el planificador de mediano plazo suspendio un proceso (escritura al swap terminada) */
+    public int getSuspensions() { return suspensions; }
+    /** @return veces que un proceso volvio del swap a la RAM (lectura del swap terminada) */
+    public int getReactivations() { return reactivations; }
 
     @Override
     public String toString() {
         return String.format("%s | ciclos=%d completados=%d vencidos=%d | throughput=%.4f | CPU=%.1f%% | "
-                + "respuesta=%s | deadlines=%s | equidad=%s",
+                                + "respuesta=%s | deadlines=%s | equidad=%s | suspensiones=%d reactivaciones=%d",
                 label, cycles, completed, missedDeadline, throughput, cpuUtilization * 100,
-                fmt(avgResponseTime, "%.2f"), pct(deadlineCompliance), fmt(fairness, "%.3f"));
-    }
+                fmt(avgResponseTime, "%.2f"), pct(deadlineCompliance), fmt(fairness, "%.3f"),
+                suspensions, reactivations);    }
 
     private static String fmt(double v, String f) {
         return Double.isNaN(v) ? "-" : String.format(f, v);
