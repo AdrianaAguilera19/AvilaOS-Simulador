@@ -142,6 +142,24 @@ public class MediumTermScheduler implements Clockable {
                 + triggerProcess.getName() + ": escribe " + blocks + " bloques en el swap (desde el bloque "
                 + chain.first() + ")");
     }
+    
+        /**
+     * S13 (DEC-08): el deadline sigue corriendo mientras el proceso esta suspendido. Si vence, el
+     * computador lo termina y llama a este metodo para devolver sus bloques de swap. Si en ese momento
+     * el disco esta leyendo su imagen (reactivacion en curso), el swap lo libera finishReactivation al
+     * terminar la lectura, para no soltar bloques que el disco todavia esta leyendo.
+     */
+    public void releaseSwapOfExpired(PCB p) {
+        SwapArea area = swap;
+        if (area == null || p == null || p == reactivating) {
+            return;
+        }
+        int freed = area.release(String.valueOf(p.getId()));
+        if (freed > 0) {
+            computer.logMediumTerm("Se liberan " + freed + " bloques de swap de " + p.getName()
+                    + ": vencio su deadline estando suspendido");
+        }
+    }
 
     /** Avisa (una sola vez por cada falta) que no se pudo suspender por falta de swap. */
     private void warnSwapFull(String reason) {
