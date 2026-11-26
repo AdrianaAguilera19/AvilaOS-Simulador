@@ -84,8 +84,8 @@ public class MediumTermScheduler implements Clockable {
      */
     private void evaluateTrigger() {
         PCB waiting = computer.peekNewProcess();
-        boolean must = SuspensionTrigger.mustSuspend(waiting, computer.getRam(),
-                computer.blockedCountInRam(), computer.blockedMemoryInRam());
+        boolean must =! computer.hasReadySuspended() 
+                && SuspensionTrigger.mustSuspend(waiting, computer.getRam(), computer.blockedCountInRam(), computer.blockedMemoryInRam());
                 if (!must) {
             triggerPending = false;
             triggerProcess = null;
@@ -190,7 +190,7 @@ public class MediumTermScheduler implements Clockable {
     private void startReactivationIfPossible() {
         SwapArea area = swap;
         DiskQueue queue = diskQueue;
-        if (area == null || queue == null || reactivating != null || inFlightVictim != null || triggerPending) {
+        if (area == null || queue == null || reactivating != null || inFlightVictim != null) {
             return;
         }
         avilaos.datastructures.CustomQueue<PCB> candidates = computer.readySuspendedQueueCopy();
