@@ -19,6 +19,8 @@ import avilaos.model.hardware.DiskHead;
 public final class DiskLimits {
     public static final int MIN_BLOCKS = 100;
     public static final int MAX_BLOCKS = 500;
+        /** G17: tope del area de swap (igual que el del disco). */
+    public static final int MAX_SWAP_BLOCKS = 500;
 
     private DiskLimits() { }
 
