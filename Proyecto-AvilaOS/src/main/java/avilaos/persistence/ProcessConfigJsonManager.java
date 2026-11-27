@@ -28,6 +28,18 @@ import java.nio.file.Paths;
  * con valores por defecto seguros.
  */
 public final class ProcessConfigJsonManager {
+    
+    /** G17: tope para los valores numericos de la configuracion (evita valores absurdos). */
+    public static final int MAX_VALOR = 1_000_000;
+    /** G17: tope de la duracion de un ciclo (1 minuto). */
+    public static final int MAX_CICLO_MS = 60_000;
+
+    /** G17: rechaza un valor por encima de su tope. */
+    private static void tope(int valor, int max, String campo) throws ConfigException {
+        if (valor > max) {
+            throw new ConfigException(campo + " no puede ser mayor que " + max + " (se indico " + valor + ")");
+        }
+    }
 
     public static final String DEFAULT_COMPUTER_NAME = "Computador 1";
     public static final int DEFAULT_PRIORITY = 1;
@@ -76,6 +88,8 @@ public final class ProcessConfigJsonManager {
         if (cycleDurationMs <= 0) {
             throw new ConfigException("cycleDurationMs debe ser mayor que 0 (se indico " + cycleDurationMs + ")");
         }
+        
+                tope(cycleDurationMs, MAX_CICLO_MS, "cycleDurationMs");
 
         int swapSizeBlocks = requireInt(global, "swapSizeBlocks", "globalConfig");
         if (swapSizeBlocks <= 0) {
@@ -88,6 +102,8 @@ public final class ProcessConfigJsonManager {
             throw new ConfigException("Politica de disco desconocida en globalConfig: '" + diskPolicyText
                     + "' (use FIFO, SSTF, SCAN o C-SCAN)");
         }
+        
+                tope(swapSizeBlocks, DiskLimits.MAX_SWAP_BLOCKS, "swapSizeBlocks");
 
         // Campos opcionales de globalConfig (J06)
         int headSpeed = optionalInt(global, "headSpeed", DiskHead.DEFAULT_SPEED, "globalConfig");
@@ -95,6 +111,7 @@ public final class ProcessConfigJsonManager {
         if (speedErr != null) {
             throw new ConfigException(speedErr);
         }
+                tope(headSpeed, DiskLimits.MAX_BLOCKS, "headSpeed");
 
         HeadDirection headDirection = DEFAULT_HEAD_DIRECTION;
         String dirText = optionalString(global, "initialHeadDirection", "globalConfig");
@@ -117,6 +134,8 @@ public final class ProcessConfigJsonManager {
         if (ramCapacity <= 0) {
             throw new ConfigException("ramCapacity debe ser mayor que 0 (se indico " + ramCapacity + ")");
         }
+        
+                tope(ramCapacity, MAX_VALOR, "ramCapacity");
 
         String cpuPolicyText = requireString(comp, "policy", "computer");
         SchedulingAlgorithm cpuPolicy = parseCpuPolicy(cpuPolicyText);
@@ -132,6 +151,8 @@ public final class ProcessConfigJsonManager {
         if (cpuPolicy == SchedulingAlgorithm.ROUND_ROBIN && quantum <= 0) {
             throw new ConfigException("Para la politica ROUND_ROBIN, quantum debe ser mayor que 0");
         }
+        
+                tope(quantum, MAX_VALOR, "quantum");
 
         // 3. processes
         JsonArray procArray = requireArray(root, "processes", "la raiz del JSON");
@@ -146,7 +167,7 @@ public final class ProcessConfigJsonManager {
             if (el == null || !el.isJsonObject()) {
                 throw new ConfigException("El elemento " + ctx + " debe ser un objeto JSON");
             }
-            specs.add(parseProcess(el.getAsJsonObject(), ctx));
+                        specs.add(parseProcess(el.getAsJsonObject(), ctx, ramCapacity));
         }
 
         return new ProcessConfigData(
@@ -155,12 +176,16 @@ public final class ProcessConfigJsonManager {
         );
     }
 
-    private static ProcessConfigData.ProcessSpec parseProcess(JsonObject obj, String ctx) throws ConfigException {
+    private static ProcessConfigData.ProcessSpec parseProcess(JsonObject obj, String ctx, int ramCapacity) throws ConfigException {
         String name = requireString(obj, "name", ctx);
 
         int memory = requireInt(obj, "memory", ctx);
         if (memory <= 0) {
             throw new ConfigException("memory debe ser mayor que 0 en " + ctx + " (" + name + ")");
+        }
+                if (memory > ramCapacity) {
+            throw new ConfigException("memory (" + memory + ") no puede superar la RAM del computador ("
+                    + ramCapacity + ") en " + ctx + " (" + name + ")");
         }
 
         int deadline = requireInt(obj, "deadline", ctx);
@@ -172,6 +197,8 @@ public final class ProcessConfigJsonManager {
         if (instructions <= 0) {
             throw new ConfigException("instructions debe ser mayor que 0 en " + ctx + " (" + name + ")");
         }
+                tope(deadline, MAX_VALOR, "deadline");
+        tope(instructions, MAX_VALOR, "instructions");
 
         String targetPath = requireString(obj, "targetPath", ctx);
         validateTargetPath(targetPath, ctx);
@@ -207,6 +234,7 @@ public final class ProcessConfigJsonManager {
         if (priority <= 0) {
             throw new ConfigException("priority debe ser mayor que 0 en " + ctx);
         }
+                tope(priority, MAX_VALOR, "priority");
 
         ActiveUser actor = resolveActor(obj, ctx);
 
