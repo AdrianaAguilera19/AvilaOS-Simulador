@@ -59,6 +59,7 @@ public class VentanaSimulacion extends JPanel {
     private final PanelModoUsuario panelModo;
     private final PanelAccionesArchivo panelAcciones;
     private final PanelMetricasIntegrado panelMetricas;
+        private final PanelGraficaDesplazamiento panelGraficaDesp;
     private final PanelLog panelLog;
     private final PanelCargaJson panelCarga;   // puede ser null (para guardar el FS)
 
@@ -110,6 +111,7 @@ public class VentanaSimulacion extends JPanel {
         panelFs = new PanelSistemaArchivos(sfs);
         panelAcciones = new PanelAccionesArchivo(coordinator, panelModo, panelFs);
         panelMetricas = new PanelMetricasIntegrado(cluster, recordLog);
+                panelGraficaDesp = new PanelGraficaDesplazamiento(recordLog);
         panelLog = new PanelLog(cluster.getLogger());
         panelModo.registrarControlSoloAdmin(panelDisco.getComboPolitica());
 
@@ -133,6 +135,7 @@ public class VentanaSimulacion extends JPanel {
         pestanas.addTab("Colas y suspendidos", panelColas);
         pestanas.addTab("Sistema de archivos", archivos);
         pestanas.addTab("Metricas", panelMetricas);
+                pestanas.addTab("Desplazamiento del cabezal", panelGraficaDesp);
         pestanas.addTab("Log de eventos", panelLog);
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, arriba, pestanas);
@@ -265,6 +268,7 @@ public class VentanaSimulacion extends JPanel {
         panelDisco.refresh();
         panelFs.refresh();
         panelMetricas.refresh();
+                panelGraficaDesp.refresh();
         panelLog.refresh();
     }
 
@@ -291,5 +295,6 @@ public class VentanaSimulacion extends JPanel {
     public PanelComputador getPanelComputador() { return panelComputador; }
     public PanelSistemaArchivos getPanelFs() { return panelFs; }
     public PanelMetricasIntegrado getPanelMetricas() { return panelMetricas; }
+        public PanelGraficaDesplazamiento getPanelGraficaDesplazamiento() { return panelGraficaDesp; }
     public PanelLog getPanelLog() { return panelLog; }
 }
