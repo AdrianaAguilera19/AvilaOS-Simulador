@@ -1,27 +1,34 @@
 package avilaos.main;
 
-import avilaos.gui.DialogoInicio;
-import avilaos.gui.PanelCluster;
-import avilaos.model.hardware.Cluster;
+import avilaos.gui.PanelCargaJson;
+import avilaos.gui.Tema;
+import avilaos.gui.VentanaSimulacion;
+import java.awt.BorderLayout;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
 /**
- * Punto de entrada de AvilaOS: pide la configuracion inicial (o un archivo guardado) y muestra la ventana principal.
- * Desde la ventana se crean procesos y buffers, se cambia la politica y se controla el reloj.
+ * Punto de entrada de AvilaOS (P2): primero se cargan los dos JSON (sistema de archivos y procesos)
+ * y al pulsar "Iniciar simulacion" se abre la ventana integrada con el disco, las colas y las metricas.
  */
 public class ProyectoAvilaOS {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            // El usuario elige cuantos computadores, su RAM, el ciclo y la latencia (o carga un archivo)
-            Cluster cluster = DialogoInicio.pedir();
-            if (cluster == null) {
-                return;
-            }
-            JFrame ventana = new JFrame("AvilaOS - Simulador de sistema operativo distribuido");
+            JFrame ventana = new JFrame("AvilaOS - Simulador de sistema operativo");
             ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            PanelCluster.mostrar(ventana, cluster);
+
+            PanelCargaJson carga = new PanelCargaJson();
+            carga.setOnBundleReady(bundle -> VentanaSimulacion.mostrar(ventana, bundle, carga));
+
+            JPanel inicio = new JPanel(new BorderLayout());
+            inicio.setBackground(Tema.FONDO);
+            inicio.setBorder(javax.swing.BorderFactory.createEmptyBorder(24, 24, 24, 24));
+            inicio.add(Tema.etiqueta("AvilaOS - carga de la simulacion", Tema.TITULO, Tema.ROSA), BorderLayout.NORTH);
+            inicio.add(carga, BorderLayout.CENTER);
+            ventana.setContentPane(inicio);
+
             ventana.setSize(1400, 900);
             ventana.setLocationRelativeTo(null);
             ventana.setVisible(true);
