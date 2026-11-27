@@ -5,6 +5,7 @@
 package avilaos.model.hardware;
 
 import avilaos.datastructures.CustomLinkedList;
+import avilaos.interfaces.Clockable;
 import avilaos.interfaces.SchedulingPolicy;
 import avilaos.model.process.PCB;
 import avilaos.enums.SchedulingAlgorithm;
@@ -183,6 +184,13 @@ public class Cluster implements ProcessWaker {
      * Pausa el reloj de todo el cluster
      */
     public void pause() { clock.pause(); }
+    
+    
+    /**
+     * Registra otro componente (por ejemplo el coordinador de E/S del disco) para que reciba cada ciclo.
+     * Se avisa en orden de registro: los computadores primero y este despues.
+     */
+    public void registerClockable(Clockable c) { clock.register(c); }
     
     /**
      * renauda el reloj despues de una pausa

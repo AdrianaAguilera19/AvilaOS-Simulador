@@ -18,6 +18,7 @@ public final class ComputerSnapshot {
     private final CustomQueue<PCB> finishedQueue;
         private final CustomQueue<PCB> readySuspendedQueue;
     private final CustomQueue<PCB> blockedSuspendedQueue;
+        private final DiskSnapshot disk;   // G20: foto del disco (null si no hay disco conectado)
 
     public ComputerSnapshot(PCB running, ExecutionMode mode, CustomQueue<PCB> newQueue,
                             CustomQueue<PCB> readyQueue, CustomQueue<PCB> blockedQueue,
@@ -31,6 +32,7 @@ public final class ComputerSnapshot {
         this.finishedQueue = finishedQueue;
                 this.readySuspendedQueue = readySuspendedQueue;
         this.blockedSuspendedQueue = blockedSuspendedQueue;
+                this.disk = null;
     }
 
     /** @return proceso en la CPU, o null si la CPU esta libre */
@@ -42,6 +44,29 @@ public final class ComputerSnapshot {
     public CustomQueue<PCB> getFinishedQueue() { return finishedQueue; }
         public CustomQueue<PCB> getReadySuspendedQueue() { return readySuspendedQueue; }
     public CustomQueue<PCB> getBlockedSuspendedQueue() { return blockedSuspendedQueue; }
+    
+    /** G20: foto del disco, o null si esta foto se tomo sin disco. */
+    public DiskSnapshot getDisk() { return disk; }
+
+    /** G20: devuelve una foto igual a esta pero con la foto del disco incluida. */
+    public ComputerSnapshot withDisk(DiskSnapshot diskSnapshot) {
+        return new ComputerSnapshot(running, mode, newQueue, readyQueue, blockedQueue, finishedQueue,
+                readySuspendedQueue, blockedSuspendedQueue, diskSnapshot);
+    }
+
+    private ComputerSnapshot(PCB running, ExecutionMode mode, CustomQueue<PCB> newQueue,
+            CustomQueue<PCB> readyQueue, CustomQueue<PCB> blockedQueue, CustomQueue<PCB> finishedQueue,
+            CustomQueue<PCB> readySuspendedQueue, CustomQueue<PCB> blockedSuspendedQueue, DiskSnapshot disk) {
+        this.running = running;
+        this.mode = mode;
+        this.newQueue = newQueue;
+        this.readyQueue = readyQueue;
+        this.blockedQueue = blockedQueue;
+        this.finishedQueue = finishedQueue;
+        this.readySuspendedQueue = readySuspendedQueue;
+        this.blockedSuspendedQueue = blockedSuspendedQueue;
+        this.disk = disk;
+    }
 
     /** @return cantidad total de procesos de este computador (CPU + todas las colas) */
     public int totalProcesses() {
