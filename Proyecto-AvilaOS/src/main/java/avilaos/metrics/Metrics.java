@@ -20,10 +20,19 @@ public final class Metrics {
     private final double fairness;
         private final int suspensions;      // S14: suspensiones completadas
     private final int reactivations;    // S14: reactivaciones completadas
+        private final DiskMetrics disk;     // J18: metricas del disco (nunca null)
 
     public Metrics(String label, long cycles, int completed, int missedDeadline, double throughput,
                    double cpuUtilization, double avgResponseTime, double deadlineCompliance,
-                                      double fairness, int suspensions, int reactivations) {
+                                                         double fairness, int suspensions, int reactivations) {
+        this(label, cycles, completed, missedDeadline, throughput, cpuUtilization, avgResponseTime,
+                deadlineCompliance, fairness, suspensions, reactivations, DiskMetrics.empty());
+    }
+
+    /** Constructor con las metricas del disco (J18). */
+    public Metrics(String label, long cycles, int completed, int missedDeadline, double throughput,
+                   double cpuUtilization, double avgResponseTime, double deadlineCompliance,
+                   double fairness, int suspensions, int reactivations, DiskMetrics disk) {
         this.label = label;
         this.cycles = cycles;
         this.completed = completed;
@@ -35,6 +44,7 @@ public final class Metrics {
         this.fairness = fairness;
                 this.suspensions = suspensions;
         this.reactivations = reactivations;
+                this.disk = disk != null ? disk : DiskMetrics.empty();
     }
 
     /** @return nombre del computador, o "Sistema" para las metricas globales */
@@ -60,6 +70,8 @@ public final class Metrics {
     public int getSuspensions() { return suspensions; }
     /** @return veces que un proceso volvio del swap a la RAM (lectura del swap terminada) */
     public int getReactivations() { return reactivations; }
+        /** @return metricas del disco (J12-J14): desplazamiento, espera promedio y atendidas por politica */
+    public DiskMetrics getDisk() { return disk; }
 
     @Override
     public String toString() {
@@ -67,7 +79,7 @@ public final class Metrics {
                                 + "respuesta=%s | deadlines=%s | equidad=%s | suspensiones=%d reactivaciones=%d",
                 label, cycles, completed, missedDeadline, throughput, cpuUtilization * 100,
                 fmt(avgResponseTime, "%.2f"), pct(deadlineCompliance), fmt(fairness, "%.3f"),
-                suspensions, reactivations);    }
+                                suspensions, reactivations) + " | " + disk;    }
 
     private static String fmt(double v, String f) {
         return Double.isNaN(v) ? "-" : String.format(f, v);

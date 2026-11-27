@@ -7,6 +7,7 @@ import avilaos.model.hardware.Cluster;
 import avilaos.model.hardware.Computer;
 import avilaos.model.hardware.ComputerSnapshot;
 import avilaos.model.process.PCB;
+import avilaos.os.disk.DiskRecordLog;
 
 /**
  * Calcula las metricas de rendimiento (P11) a partir del estado actual del simulador.
@@ -36,23 +37,33 @@ public final class MetricsCalculator {
      * @param computer computador a medir
      * @return metricas de ese computador desde el inicio de la simulacion
      */
-    public static Metrics forComputer(Computer computer) {
+        public static Metrics forComputer(Computer computer) {
+        return forComputer(computer, null);
+    }
+
+    /** J18: igual que forComputer pero incluye las metricas del disco (diskLog null = sin ellas). */
+    public static Metrics forComputer(Computer computer, DiskRecordLog diskLog) {
         Accumulator acc = new Accumulator();
         acc.add(computer);
-        return acc.toMetrics(computer.getName(), computer.getCpu().getTotalCycles());
+                return acc.toMetrics(computer.getName(), computer.getCpu().getTotalCycles(), DiskMetrics.from(diskLog));
     }
 
     /**
      * @param cluster sistema completo
      * @return metricas globales sumando todos los computadores
      */
-    public static Metrics forSystem(Cluster cluster) {
+        public static Metrics forSystem(Cluster cluster) {
+        return forSystem(cluster, null);
+    }
+
+    /** J18: igual que forSystem pero incluye las metricas del disco (diskLog null = sin ellas). */
+    public static Metrics forSystem(Cluster cluster, DiskRecordLog diskLog) {
         Accumulator acc = new Accumulator();
         CustomLinkedList<Computer> computers = cluster.getComputersSnapshot();
         for (int i = 0; i < computers.size(); i++) {
             acc.add(computers.get(i));
         }
-        return acc.toMetrics("Sistema", cluster.getCurrentCycle());
+        return acc.toMetrics("Sistema", cluster.getCurrentCycle(), DiskMetrics.from(diskLog));
     }
 
     /** Va sumando los datos de uno o varios computadores y al final calcula las metricas. */
@@ -121,7 +132,7 @@ public final class MetricsCalculator {
             return Math.min(1.0, Math.max(0.0, done / p.getTotalInstructions()));
         }
 
-        Metrics toMetrics(String label, long cycles) {
+        Metrics toMetrics(String label, long cycles, DiskMetrics disk) {
             double throughput = cycles > 0 ? (double) completed / cycles : 0.0;
             double utilization = totalCycles > 0 ? (double) busyCycles / totalCycles : 0.0;
             double avgResponse = responseCount > 0 ? (double) responseSum / responseCount : Double.NaN;
@@ -136,7 +147,7 @@ public final class MetricsCalculator {
                 fairness = (sumX * sumX) / (admitted * sumX2);
             }
             return new Metrics(label, cycles, completed, missed, throughput, utilization,
-                                        avgResponse, compliance, fairness, suspensions, reactivations);
+                                        avgResponse, compliance, fairness, suspensions, reactivations, disk);
         }
     }
 }
