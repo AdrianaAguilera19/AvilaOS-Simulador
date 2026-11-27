@@ -151,17 +151,16 @@ public final class DialogosCreacion {
     /** Ventana "Nuevo proceso": los campos cambian segun el tipo elegido. */
     private static final class DialogoProceso extends Base {
 
-        private final JComboBox<ProcessType> cmbTipo = new JComboBox<>(new ProcessType[]{ProcessType.CPU_BOUND, ProcessType.IO_BOUND});
+        private final JComboBox<ProcessType> cmbTipo = new JComboBox<>(new ProcessType[]{ProcessType.CPU_BOUND});
         private final JTextField txtNombre = campoTexto("");
         // final JComboBox<String> cmbComputador;
         private final JTextField txtPrioridad = campoTexto("1");
         private final JTextField txtMemoria = campoTexto("10");
         private final JTextField txtDeadline = campoTexto("100");
         private final JTextField txtCiclos = campoTexto("10");
-        private final JTextField txtIntervalo = campoTexto("3");
-        private final JTextField txtDuracionEs = campoTexto("2");
+        
 
-        private javax.swing.JComponent[] filaCiclos, filaIntervalo, filaDuracion;
+        private javax.swing.JComponent[] filaCiclos;
 
         DialogoProceso(Window owner, Cluster cluster) {
             super(owner, cluster, "Nuevo proceso", "Crear proceso");
@@ -175,8 +174,7 @@ public final class DialogosCreacion {
             agregarFila("Memoria", txtMemoria);
             agregarFila("Deadline (ciclos)", txtDeadline);
             filaCiclos = agregarFila("Ciclos de ejecucion", txtCiclos);
-            filaIntervalo = agregarFila("Cada cuantos ciclos pide E/S", txtIntervalo);
-            filaDuracion = agregarFila("Duracion de la E/S (ciclos)", txtDuracionEs);
+            
 
             cmbTipo.addActionListener(e -> {
                 actualizarCampos();
@@ -189,11 +187,8 @@ public final class DialogosCreacion {
         /** Muestra solo los campos que usa el tipo elegido. */
         private void actualizarCampos() {
             ProcessType t = (ProcessType) cmbTipo.getSelectedItem();
-            boolean cpu = t == ProcessType.CPU_BOUND;
-            boolean io = t == ProcessType.IO_BOUND;
-            mostrar(filaCiclos, cpu || io);
-            mostrar(filaIntervalo, io);
-            mostrar(filaDuracion, io);
+                        boolean cpu = t == ProcessType.CPU_BOUND;
+            mostrar(filaCiclos, cpu);
             pack();
         }
 
@@ -206,13 +201,10 @@ public final class DialogosCreacion {
             d.priority = entero(txtPrioridad, "La prioridad");
             d.memorySize = entero(txtMemoria, "La memoria");
             d.deadline = entero(txtDeadline, "El deadline");
-            if (d.type == ProcessType.CPU_BOUND || d.type == ProcessType.IO_BOUND) {
+                        if (d.type == ProcessType.CPU_BOUND) {
                 d.cycles = entero(txtCiclos, "Los ciclos de ejecucion");
             }
-            if (d.type == ProcessType.IO_BOUND) {
-                d.ioInterval = entero(txtIntervalo, "El intervalo de E/S");
-                d.ioDuration = entero(txtDuracionEs, "La duracion de la E/S");
-            }
+            
             CreadorManual.crearProceso(cluster, d);
         }
     }

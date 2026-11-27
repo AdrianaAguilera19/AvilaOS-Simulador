@@ -33,25 +33,7 @@ public class ProcessFactory {
                        deadline, computerId, arrivalCycle);
     }
     
-    /**
-     * Crea un proceso I/O bound, que pide e/s cada cierto numero de instrucciones
-     * @param name
-     * @param priority
-     * @param memorySize
-     * @param cycles
-     * @param ioInterval
-     * @param ioDuration
-     * @param deadline
-     * @param computerId
-     * @param arrivalCycle
-     * @return 
-     */
-    public static PCB createIoBound(String name, int priority, int memorySize, int cycles,int ioInterval, int ioDuration,int deadline, int computerId, long arrivalCycle) {
-        
-        PCB p = new PCB(name, ProcessType.IO_BOUND, priority, memorySize, cycles,deadline, computerId, arrivalCycle);
-        p.setIoParameters(ioInterval, ioDuration);
-        return p;
-    }
+   
     
     
     /**

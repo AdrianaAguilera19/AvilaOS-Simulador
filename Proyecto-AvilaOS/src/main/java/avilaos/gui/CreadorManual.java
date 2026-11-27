@@ -50,13 +50,7 @@ public final class CreadorManual {
                 pcb = ProcessFactory.createCpuBound(nombre, d.priority, d.memorySize, d.cycles,
                         d.deadline, d.computerId, llegada);
                 break;
-            case IO_BOUND:
-                Validador.rango(d.cycles, "Los ciclos de ejecucion", 1, Validador.MAX_VALOR);
-                Validador.rango(d.ioInterval, "El intervalo de E/S", 1, Validador.MAX_VALOR);
-                Validador.rango(d.ioDuration, "La duracion de la E/S", 1, Validador.MAX_VALOR);
-                pcb = ProcessFactory.createIoBound(nombre, d.priority, d.memorySize, d.cycles,
-                        d.ioInterval, d.ioDuration, d.deadline, d.computerId, llegada);
-                break;
+            
             default:
                 throw new IllegalArgumentException("El tipo " + d.type
                         + " ya no existe: el simulador no usa productores, consumidores ni buffers");

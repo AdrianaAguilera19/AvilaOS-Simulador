@@ -24,7 +24,7 @@ import java.nio.file.Path;
 /**
  * I13: prueba integral con el computador unico. Un mismo escenario junta CPU, RAM con cola de nuevos,
  * las politicas FCFS, Round Robin y EDF, dos cambios de politica en caliente, un deadline que
- * vence, un proceso de E/S, las metricas, la configuracion guardada en JSON y la interfaz grafica.
+ * vence, las metricas, la configuracion guardada en JSON y la interfaz grafica.
  * Se ejecuta como programa (main), con ticks manuales (siempre da el mismo resultado);
  * termina con "TODAS LAS PRUEBAS PASARON" o con codigo de salida 1.
  */
@@ -129,13 +129,13 @@ public class PruebaIntegral {
         c.computers = new ConfigDTO.ComputerConfig[] {computador("PC1", SchedulingAlgorithm.FCFS, 4)};
 
         c.processes = new ConfigDTO.ProcessConfig[] {
-            proceso("cpuA", ProcessType.CPU_BOUND, 2, 60, 500, 1, 10, 0, 0),
-            proceso("cpuB", ProcessType.CPU_BOUND, 3, 60, 500, 1, 10, 0, 0),
-            proceso("rr1", ProcessType.CPU_BOUND, 2, 20, 500, 1, 12, 0, 0),
-            proceso("rr2", ProcessType.CPU_BOUND, 2, 20, 500, 1, 12, 0, 0),
-            proceso("edf1", ProcessType.CPU_BOUND, 1, 10, 4, 1, 10, 0, 0),
-            proceso("edf2", ProcessType.CPU_BOUND, 1, 10, 500, 1, 6, 0, 0),
-            proceso("io", ProcessType.IO_BOUND, 2, 10, 500, 1, 6, 2, 2)};
+            proceso("cpuA", ProcessType.CPU_BOUND, 2, 60, 500, 1, 10),
+            proceso("cpuB", ProcessType.CPU_BOUND, 3, 60, 500, 1, 10),
+            proceso("rr1", ProcessType.CPU_BOUND, 2, 20, 500, 1, 12),
+            proceso("rr2", ProcessType.CPU_BOUND, 2, 20, 500, 1, 12),
+            proceso("edf1", ProcessType.CPU_BOUND, 1, 10, 4, 1, 10),
+            proceso("edf2", ProcessType.CPU_BOUND, 1, 10, 500, 1, 6),
+            proceso("io", ProcessType.CPU_BOUND, 2, 10, 500, 1, 6)};
         return c;
     }
 
@@ -149,7 +149,7 @@ public class PruebaIntegral {
     }
 
     private static ConfigDTO.ProcessConfig proceso(String n, ProcessType t, int prio, int mem, int deadline,
-            int pc, int cycles, int ioInt, int ioDur) {
+            int pc, int cycles) {
         ConfigDTO.ProcessConfig p = new ConfigDTO.ProcessConfig();
         p.name = n;
         p.type = t;
@@ -158,8 +158,6 @@ public class PruebaIntegral {
         p.deadline = deadline;
         p.computerId = pc;
         p.cycles = cycles;
-        p.ioInterval = ioInt;
-        p.ioDuration = ioDur;
         return p;
     }
 

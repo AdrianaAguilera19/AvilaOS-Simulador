@@ -124,7 +124,7 @@ public class PruebasLogMedianoPlazo {
 
         /** Proceso con E/S larga: queda Bloqueado en RAM y es candidato a victima. */
         PCB bloqueado(String nombre, int memoria) {
-            PCB p = ProcessFactory.createIoBound(nombre, 5, memoria, 500, 1, 5000, 5000, pc.getId(), 0);
+            PCB p = ProcesoBloqueante.crear(pc, nombre, 5, memoria, 500, 1, 5000, 5000, 0);
             pc.admit(p);
             return p;
         }
@@ -155,7 +155,7 @@ public class PruebasLogMedianoPlazo {
     private static void cicloCompletoEnElLog() {
         titulo("Un ciclo completo deja cada decision en el log, en orden");
         Entorno e = new Entorno(30);
-        PCB v = ProcessFactory.createIoBound("P7", 5, 20, 500, 1, 60, 5000, e.pc.getId(), 0);
+        PCB v = ProcesoBloqueante.crear(e.pc, "P7", 5, 20, 500, 1, 60, 5000, 0);
         e.pc.admit(v);
         for (int i = 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++) {
             e.tick();
@@ -170,7 +170,7 @@ public class PruebasLogMedianoPlazo {
             "Victima de la suspension: P7",
             "Se suspende al proceso P7 para admitir a P9",
             "P7 queda suspendido (Bloqueado/Suspendido) y libera 20 de memoria",
-            "P7 (suspendido) termina su espera (IO) y pasa a Listo/Suspendido",
+            "P7 (suspendido) termina su espera (NETWORK_LATENCY) y pasa a Listo/Suspendido",
             "Se reactiva al proceso P7",
             "P7 vuelve del swap a la RAM (Listo/Suspendido -> Listo)",
             "Reactivacion de P7 completa"
@@ -183,7 +183,7 @@ public class PruebasLogMedianoPlazo {
                 desde = pos;
             }
         }
-        check(log.contains("[Ciclo 3] Computador 1: Se suspende al proceso P7 para admitir a P9"),
+        check(log.contains("[Ciclo 4] Computador 1: Se suspende al proceso P7 para admitir a P9"),
                 "el mensaje lleva el ciclo y el computador");
     }
 
@@ -191,7 +191,7 @@ public class PruebasLogMedianoPlazo {
         titulo("La espera por swap lleno queda en el log");
         Entorno e = new Entorno(100);
         e.bloqueadoSuspendido("S1", 100);
-        PCB v = ProcessFactory.createIoBound("P7", 5, 60, 500, 1, 5000, 5000, e.pc.getId(), 0);
+        PCB v = ProcesoBloqueante.crear(e.pc, "P7", 5, 60, 500, 1, 5000, 5000, 0);
         e.pc.admit(v);
         for (int i = 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++) {
             e.tick();
@@ -218,7 +218,7 @@ public class PruebasLogMedianoPlazo {
     private static void cancelacionesEnElLog() {
         titulo("Las cancelaciones y el swap que se libera quedan en el log");
         Entorno e = new Entorno(30);
-        PCB v = ProcessFactory.createIoBound("P7", 5, 20, 500, 1, 5000, 14, e.pc.getId(), 0);
+        PCB v = ProcesoBloqueante.crear(e.pc, "P7", 5, 20, 500, 1, 5000, 14, 0);
         e.pc.admit(v);
         for (int i = 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++) {
             e.tick();

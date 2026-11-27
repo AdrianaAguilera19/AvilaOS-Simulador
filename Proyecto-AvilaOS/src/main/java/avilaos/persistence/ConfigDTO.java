@@ -50,8 +50,7 @@ public class ConfigDTO {
         public int deadline;
         public int computerId;
         public int cycles;
-        public int ioInterval;
-        public int ioDuration;
+        
     }
 
     /**
@@ -135,10 +134,7 @@ public class ConfigDTO {
             if (p.cycles <= 0) {
                 throw new ConfigException(who + " debe necesitar mas de 0 ciclos");
             }
-        } else if (p.type == ProcessType.IO_BOUND) {
-            if (p.cycles <= 0 || p.ioInterval <= 0 || p.ioDuration <= 0) {
-                throw new ConfigException(who + " necesita ciclos, intervalo y duracion de E/S mayores que 0");
-            }
+        
         } else {
             // El simulador ya no trabaja con productores, consumidores ni buffers (B02)
             throw new ConfigException(who + " es de tipo " + p.type + ": el simulador ya no usa productores, consumidores ni buffers");

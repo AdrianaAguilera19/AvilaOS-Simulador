@@ -87,8 +87,7 @@ public class Computer implements Clockable {
      // S08: procesos esperando la latencia de red de un acceso remoto
        private final NetworkWaitList networkWaits = new NetworkWaitList();
        
-    // E/S: espera de los procesos IO_BOUND. Usa la misma mecanica de cuenta de ciclos que la red
-    private final NetworkWaitList ioWaits = new NetworkWaitList();
+    
        // S11: registro global de eventos (lo pone el Cluster; puede ser null en pruebas sueltas)
               private volatile EventLogger logger;
                           // S10: quien lleva la cuenta de las esperas en semaforos (lo pone el Cluster; puede ser null)
@@ -224,11 +223,7 @@ public class Computer implements Clockable {
                 requestWake(arrived);
 } 
 
-        // E/S: los procesos IO_BOUND cuya espera termino se despiertan en este mismo ciclo
-        CustomQueue<PCB> ioDone = ioWaits.tick();
-        while ((arrived = ioDone.dequeue()) != null) {
-            requestWake(arrived);
-        }
+        
               
                 processPendingWakes(currentPolicy);        // S05: pasa a listos a los despertados
 
@@ -243,7 +238,7 @@ public class Computer implements Clockable {
             boolean blocked = false;
             if (runner == null) {
                 cpu.executeUserInstruction();
-            blocked = blockForIoIfNeeded(running);   // IO_BOUND: puede pedir E/S
+            
             } else {
                 blocked = executeRunnerStep(runner);
             }
@@ -420,28 +415,7 @@ public class Computer implements Clockable {
         }
         return null;
     }
-    /**
-     * Si el proceso es IO_BOUND y acaba de ejecutar su instruccion numero k * ioInterval (sin haber
-     * terminado), pide E/S: sale de la CPU, pasa a Bloqueado con motivo IO y espera ioDuration ciclos.
-     * @param p proceso que acaba de ejecutar una instruccion en la CPU
-     * @return true si el proceso se bloqueo por E/S
-     */
-    private boolean blockForIoIfNeeded(PCB p) {
-        if (p.getType() != ProcessType.IO_BOUND || p.isFinished() || p.getIoInterval() <= 0) {
-            return false;
-        }
-        int executed = p.getTotalInstructions() - p.getRemainingTime();
-        if (executed % p.getIoInterval() != 0) {
-            return false;
-        }
-        cpu.unload();                                   // libera la CPU
-        p.setState(ProcessState.BLOCKED);
-        p.setBlockReason(BlockReason.IO);
-        blockedQueue.enqueue(p);
-        ioWaits.add(p, p.getIoDuration());
-        logEvent(p.getName() + " pide E/S y se bloquea " + p.getIoDuration() + " ciclos");
-        return true;
-    }
+    
         /**
      * Ejecuta un ciclo de un proceso con semáforos y reacciona a lo que devuelve.
      * @return true si el proceso se bloqueó (ya salió de la CPU y está en la cola de bloqueados)

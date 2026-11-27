@@ -115,10 +115,7 @@ public class ConfigExporter {
         pc.deadline = p.getInitialDeadline();
         pc.computerId = p.getComputerId();
         pc.cycles = p.getTotalInstructions();
-        if (p.getType() == ProcessType.IO_BOUND) {
-            pc.ioInterval = p.getIoInterval();
-            pc.ioDuration = p.getIoDuration();
-        }
+        
         return pc;
     }
 }

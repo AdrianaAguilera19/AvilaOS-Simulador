@@ -20,7 +20,7 @@ import avilaos.scheduler.RoundRobinPolicy;
  * siempre el mismo resultado.
  * Cubre: transiciones de estado, las cuatro politicas (FCFS, EDF, Prioridades apropiativas y
  * Round Robin), cambio de quantum y de politica en caliente, bloqueo por E/S de los procesos
- * IO_BOUND y vencimiento de deadline (en CPU, en listos, en bloqueados y en nuevos).
+ * procesos que se bloquean y vencimiento de deadline (en CPU, en listos, en bloqueados y en nuevos).
  */
 public class PruebasPlanificacion {
 
@@ -234,12 +234,12 @@ public class PruebasPlanificacion {
         Cluster cl = cluster(new FCFSPolicy(), 100);
         Computer pc = cl.getComputer(1);
         // 6 instrucciones; cada 2 pide E/S y espera 3 ciclos
-        PCB io = ProcessFactory.createIoBound("IO", 1, 10, 6, 2, 3, 500, 1, 0);
+        PCB io = ProcesoBloqueante.crear(cl, 1, "IO", 1, 10, 6, 2, 3, 500, 0);
         PCB cpuBound = cpu("CPU", 1, 4, 500);
         cl.submit(io);
         cl.submit(cpuBound);
-        ticks(cl, 3);     // ciclo 1 carga IO; ciclos 2 y 3 ejecutan sus 2 primeras instrucciones
-        check(io.getState() == ProcessState.BLOCKED && io.getBlockReason() == BlockReason.IO,
+        ticks(cl, 4);
+        check(io.getState() == ProcessState.BLOCKED && io.getBlockReason() == BlockReason.NETWORK_LATENCY,
                 "tras 2 instrucciones, IO pide E/S y queda Bloqueado por E/S");
         check(cola(pc.getBlockedSnapshot()).equals("IO"), "aparece en la cola de bloqueados");
         check(enCpu(pc).equals("CPU"), "la CPU queda libre para el otro proceso (CPU)");
@@ -286,7 +286,7 @@ public class PruebasPlanificacion {
         Cluster cl = cluster(new FCFSPolicy(), 100);
         Computer pc = cl.getComputer(1);
         // pide E/S despues de 1 instruccion y espera 50 ciclos, pero su deadline es 6
-        PCB io = ProcessFactory.createIoBound("IO", 1, 10, 4, 1, 50, 6, 1, 0);
+        PCB io = ProcesoBloqueante.crear(cl, 1, "IO", 1, 10, 4, 1, 50, 6, 0);
         cl.submit(io);
         ticks(cl, 3);
         check(io.getState() == ProcessState.BLOCKED, "IO esta bloqueado esperando E/S");

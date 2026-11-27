@@ -34,7 +34,7 @@ import avilaos.scheduler.PolicyFactory;
 
 /**
  * S08: un proceso suspendido (Bloqueado/Suspendido) cuyo evento ocurre pasa a Listo/Suspendido, sin
- * volver a la RAM. Se prueba con los tres tipos de espera: E/S simulada (ciclos), operacion de disco
+ * volver a la RAM. Se prueba con los tres tipos de espera: espera con ciclos conocidos (ProcesoBloqueante), operacion de disco
  * que ya estaba en la cola cuando se suspendio, y el caso en que el evento ocurre mientras todavia se
  * escribia al swap. Tambien comprueba que un proceso que espera al disco puede ser victima.
  * Se ejecuta como programa (main); termina con "TODAS LAS PRUEBAS PASARON" o con codigo 1.
@@ -111,9 +111,9 @@ public class PruebasEventoSuspendido {
     }
 
     private static void eventoDeEsSimulada() {
-        titulo("El evento ocurre cuando el proceso ya esta suspendido (E/S simulada)");
+        titulo("El evento ocurre cuando el proceso ya esta suspendido (espera de ciclos)");
         Entorno e = new Entorno(DiskSchedulingPolicy.FIFO, 0);
-        PCB a = ProcessFactory.createIoBound("A", 5, 20, 500, 1, 120, 5000, e.pc.getId(), 0);
+        PCB a = ProcesoBloqueante.crear(e.pc, "A", 5, 20, 500, 1, 120, 5000, 0);
         e.pc.admit(a);
         check(e.hasta(a, ProcessState.BLOCKED, 30), "A se bloquea por E/S (120 ciclos)");
         PCB b = e.cpu("B", 20);

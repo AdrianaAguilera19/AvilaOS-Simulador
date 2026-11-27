@@ -10,7 +10,7 @@ package avilaos.enums;
  */
 public enum BlockReason {
     NONE, /** proceso no bloqueado*/
-    IO, /** espera a que termine una operacion de e/s (proceso IO_BOUND) */
+    
     MUTEX, /** espera en la cola del semaforo mutex de un buffer */
     EMPTY_SEMAPHORE, /** espera en el semaf de elementos de un buffer vacio (consumer)*/
     FULL_SEMAPHORE, /** espera en el semaf de espacios de un buffer lleno (producer)*/

@@ -10,7 +10,7 @@ package avilaos.enums;
  */
 public enum ProcessType {
     CPU_BOUND, /** consume sobre todo el cpu*/
-    IO_BOUND, /** cosume sobre todas las operaciones e/s*/
+     
     PRODUCER, /** produce elementos en buffer acotado*/
     CONSUMER /** consume elemento de buffer acotado*/
 }

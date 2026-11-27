@@ -133,7 +133,7 @@ public class PruebasDeadlineSuspendido {
 
         /** Proceso con E/S larga: queda Bloqueado en RAM y es candidato a victima. */
         PCB bloqueado(String nombre, int memoria) {
-            PCB p = ProcessFactory.createIoBound(nombre, 5, memoria, 500, 1, 5000, 5000, pc.getId(), 0);
+            PCB p = ProcesoBloqueante.crear(pc, nombre, 5, memoria, 500, 1, 5000, 5000, 0);
             pc.admit(p);
             return p;
         }

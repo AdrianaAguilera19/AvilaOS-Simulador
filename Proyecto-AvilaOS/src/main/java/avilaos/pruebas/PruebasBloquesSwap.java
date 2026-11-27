@@ -132,7 +132,7 @@ public class PruebasBloquesSwap {
 
         /** Proceso con E/S larga: queda Bloqueado en RAM y es candidato a victima. */
         PCB bloqueado(String nombre, int memoria) {
-            PCB p = ProcessFactory.createIoBound(nombre, 5, memoria, 500, 1, 5000, 5000, pc.getId(), 0);
+            PCB p = ProcesoBloqueante.crear(pc, nombre, 5, memoria, 500, 1, 5000, 5000, 0);
             pc.admit(p);
             return p;
         }
@@ -155,7 +155,7 @@ public class PruebasBloquesSwap {
     private static void cicloConMemoria(int m) {
         titulo("Proceso de memoria " + m + ": usa " + m + " bloques de swap");
         Entorno e = new Entorno(m + 10);
-        PCB v = ProcessFactory.createIoBound("V", 5, m, 500, 1, 60, 5000, e.pc.getId(), 0);
+        PCB v = ProcesoBloqueante.crear(e.pc, "V", 5, m, 500, 1, 60, 5000, 0);
         e.pc.admit(v);
         for (int i = 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++) {
             e.tick();

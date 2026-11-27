@@ -66,7 +66,7 @@ public class PruebasVictimaSuspension {
 
     private static void elegibles() {
         titulo("Quien es elegible");
-        check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.IO)), "un Bloqueado por E/S simulada es elegible");
+        check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.NETWORK_LATENCY)), "un Bloqueado por latencia de red es elegible");
         check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.MUTEX)), "un Bloqueado en un semaforo es elegible");
         check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.NETWORK_LATENCY)), "un Bloqueado por red es elegible");
         check(VictimSelector.isEligible(bloqueado("A", 1, BlockReason.DISK_IO)), "uno que espera al disco tambien es elegible (S08)");
@@ -78,9 +78,9 @@ public class PruebasVictimaSuspension {
 
     private static void porPrioridad() {
         titulo("Se elige el de menor prioridad (numero mas grande)");
-        PCB alta = bloqueado("Alta", 1, BlockReason.IO);
-        PCB media = bloqueado("Media", 3, BlockReason.IO);
-        PCB baja = bloqueado("Baja", 5, BlockReason.IO);
+        PCB alta = bloqueado("Alta", 1, BlockReason.NETWORK_LATENCY);
+        PCB media = bloqueado("Media", 3, BlockReason.NETWORK_LATENCY);
+        PCB baja = bloqueado("Baja", 5, BlockReason.NETWORK_LATENCY);
         check(SEL.choose(cola(alta, media, baja)) == baja, "gana Baja (5) aunque sea la ultima");
         check(SEL.choose(cola(baja, media, alta)) == baja, "gana Baja (5) aunque sea la primera");
         check(SEL.choose(cola(media, baja, alta)) == baja, "gana Baja (5) estando en medio");
@@ -89,14 +89,14 @@ public class PruebasVictimaSuspension {
 
     private static void empateElMasAntiguo() {
         titulo("En empate, el que lleva mas tiempo bloqueado");
-        PCB primero = bloqueado("Primero", 4, BlockReason.IO);   // se bloqueo antes: esta primero en la cola
-        PCB segundo = bloqueado("Segundo", 4, BlockReason.IO);
-        PCB tercero = bloqueado("Tercero", 4, BlockReason.IO);
+        PCB primero = bloqueado("Primero", 4, BlockReason.NETWORK_LATENCY);   // se bloqueo antes: esta primero en la cola
+        PCB segundo = bloqueado("Segundo", 4, BlockReason.NETWORK_LATENCY);
+        PCB tercero = bloqueado("Tercero", 4, BlockReason.NETWORK_LATENCY);
         check(SEL.choose(cola(primero, segundo, tercero)) == primero, "empate de 3: el primero en bloquearse");
-        PCB otro = bloqueado("Otro", 2, BlockReason.IO);
+        PCB otro = bloqueado("Otro", 2, BlockReason.NETWORK_LATENCY);
         check(SEL.choose(cola(otro, segundo, tercero)) == segundo,
                 "empate entre Segundo y Tercero: el mas antiguo, sin importar que haya otro mejor antes");
-        PCB masBaja = bloqueado("MasBaja", 9, BlockReason.IO);
+        PCB masBaja = bloqueado("MasBaja", 9, BlockReason.NETWORK_LATENCY);
         check(SEL.choose(cola(primero, segundo, masBaja)) == masBaja,
                 "la prioridad manda sobre la antiguedad");
     }
@@ -115,8 +115,8 @@ public class PruebasVictimaSuspension {
 
     private static void noModificaLaCola() {
         titulo("No modifica la cola");
-        PCB a = bloqueado("A", 2, BlockReason.IO);
-        PCB b = bloqueado("B", 7, BlockReason.IO);
+        PCB a = bloqueado("A", 2, BlockReason.NETWORK_LATENCY);
+        PCB b = bloqueado("B", 7, BlockReason.NETWORK_LATENCY);
         CustomQueue<PCB> q = cola(a, b);
         SEL.choose(q);
         check(q.size() == 2 && q.get(0) == a && q.get(1) == b, "la cola queda igual");
@@ -126,7 +126,7 @@ public class PruebasVictimaSuspension {
     // ------------------------------------------------------------------ con un computador
 
     private static PCB conEs(Cluster c, String nombre, int prioridad, int memoria) {
-        PCB x = ProcessFactory.createIoBound(nombre, prioridad, memoria, 100, 1, 300, 1000, 1, c.getCurrentCycle());
+        PCB x = ProcesoBloqueante.crear(c, 1, nombre, prioridad, memoria, 100, 1, 300, 1000, c.getCurrentCycle());
         c.submit(x);
         return x;
     }
