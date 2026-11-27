@@ -52,10 +52,7 @@ public class PCB {
     private int programCounter;
     private int memoryAddressRegister;
     
-    //parametros segun tipo de proceso 
-    //IO BOUND es para contar cada cuantas instrucciones pide e/s y cuantos ciclos queda bloqueado
-    private int ioInterval;
-    private int ioDuration;
+    
     
     //productos/consumidor: cuantos ciclos produce o consume un elemento
     //y cuantos elementos necesita para terminar
@@ -159,21 +156,7 @@ public class PCB {
     
     //Parametros por tipo
     
-    /**
-     * Guarda los parametros de un proceso IO_BOUND
-     * @param ioInterval
-     * @param ioDuration 
-     */
-    public void setIoParameters(int ioInterval, int ioDuration){
-        if(type != ProcessType.IO_BOUND){throw new IllegalStateException("Solo un proceso IO_BOUND tiene parametros de E/S");}
-        
-        if(ioInterval <=0 || ioDuration <=0){
-            throw new IllegalStateException("El intervalo y la duracion de la E/S deben ser mayores que 0");
-        }
-        this.ioInterval =ioInterval;
-        this.ioDuration=ioDuration;
     
-    }
     /**
      * Guarda los parametros de un prodctor o consumidor
      * @param bufferId buffer con el que trabaja
@@ -272,8 +255,7 @@ public class PCB {
     public int getAssociatedBufferId() { return associatedBufferId; }
     public int getBlockedCycles() { return blockedCycles; }
     public WaitCanceller getWaitingOn() { return waitingOn; }
-    public int getIoInterval() { return ioInterval; }
-    public int getIoDuration() { return ioDuration; }
+    
     public int getCyclesPerItem() { return cyclesPerItem; }
     public int getItemsRequired() { return itemsRequired; }
     public boolean isDeadlineMissed() { return deadlineMissed; }

@@ -31,7 +31,7 @@ public class PruebasSinBuffers {
         jsonGuardadoSinBuffers();
         jsonViejoConBuffersSeIgnora();
         productorYConsumidorSeRechazan();
-        creacionManualSoloCpuYEs();
+        creacionManualSoloCpu();
         laInterfazYaNoTienePanelDeBuffers();
 
         System.out.println();
@@ -66,9 +66,8 @@ public class PruebasSinBuffers {
         pc.policy = SchedulingAlgorithm.FCFS;
         pc.quantum = 4;
         c.computers = new ConfigDTO.ComputerConfig[] {pc};
-        c.processes = new ConfigDTO.ProcessConfig[] {proceso("cpu", ProcessType.CPU_BOUND), proceso("io", ProcessType.IO_BOUND)};
-        c.processes[1].ioInterval = 3;
-        c.processes[1].ioDuration = 2;
+        c.processes = new ConfigDTO.ProcessConfig[] {proceso("cpu", ProcessType.CPU_BOUND), proceso("cpu1", ProcessType.CPU_BOUND)};
+        
         return c;
     }
 
@@ -106,7 +105,7 @@ public class PruebasSinBuffers {
         for (int i = 0; i < 40; i++) {
             cluster.tick();
         }
-        check(ConfigExporter.fromCluster(cluster).processes.length == 2, "los 2 procesos (CPU-bound e IO-bound) siguen ahi tras 40 ciclos");
+        check(ConfigExporter.fromCluster(cluster).processes.length == 2, "los 2 procesos (CPU-bound) siguen ahi tras 40 ciclos");
         check(cluster.getComputer(1).getFinishedSnapshot().size() == 2, "y los dos terminan");
     }
 
@@ -158,8 +157,8 @@ public class PruebasSinBuffers {
         check(mensaje(base()) == null, "y la configuracion buena sigue siendo valida");
     }
 
-    private static void creacionManualSoloCpuYEs() throws Exception {
-        titulo("B02 - crear procesos a mano: solo CPU-bound e IO-bound");
+    private static void creacionManualSoloCpu() throws Exception {
+        titulo("B02 - crear procesos a mano: solo CPU-bound (E11: ya no hay IO-bound)");
         Cluster cluster = ConfigLoader.build(base());
         ConfigDTO.ProcessConfig p = proceso("nuevo", ProcessType.PRODUCER);
         boolean rechazado = false;
@@ -173,10 +172,7 @@ public class PruebasSinBuffers {
         check(rechazado, "un PRODUCER se rechaza: " + texto);
         check(ConfigExporter.fromCluster(cluster).processes.length == 2, "y no se crea ningun proceso");
         check(CreadorManual.crearProceso(cluster, proceso("cpu2", ProcessType.CPU_BOUND)) != null, "un CPU-bound si se crea");
-        ConfigDTO.ProcessConfig io = proceso("io2", ProcessType.IO_BOUND);
-        io.ioInterval = 3;
-        io.ioDuration = 2;
-        check(CreadorManual.crearProceso(cluster, io) != null, "un IO-bound si se crea");
+        check(CreadorManual.crearProceso(cluster, proceso("cpu3", ProcessType.CPU_BOUND)) != null, "otro CPU-bound tambien se crea");
         check(ConfigExporter.fromCluster(cluster).processes.length == 4, "quedan 4 procesos");
     }
 

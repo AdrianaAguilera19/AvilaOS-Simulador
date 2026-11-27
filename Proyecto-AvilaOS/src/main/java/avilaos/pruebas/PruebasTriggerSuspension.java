@@ -79,9 +79,9 @@ public class PruebasTriggerSuspension {
         return c;
     }
 
-    /** Proceso IO_BOUND: pide E/S tras cada instruccion y se bloquea 'espera' ciclos. */
+    /** Proceso que se bloquea 'espera' ciclos tras cada instruccion (ProcesoBloqueante, solo para pruebas). */
     private static PCB conEs(Cluster c, String nombre, int memoria, int espera, int instrucciones) {
-        PCB x = ProcessFactory.createIoBound(nombre, 1, memoria, instrucciones, 1, espera, 1000, 1, c.getCurrentCycle());
+        PCB x = ProcesoBloqueante.crear(c, 1, nombre, 1, memoria, instrucciones, 1, espera, 1000, c.getCurrentCycle());
         c.submit(x);
         return x;
     }

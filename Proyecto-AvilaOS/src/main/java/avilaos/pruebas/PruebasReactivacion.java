@@ -229,7 +229,7 @@ public class PruebasReactivacion {
     private static void suspendidosVanAntesQueUnNuevo(){
         titulo ("con un Listo/Suspendido esperando, un Nuevo que no cabe no obliga a suspender");
         Entorno e = new Entorno(30);
-        PCB v= ProcessFactory.createIoBound("V", 5, 20, 500, 1, 5000, 5000, e.pc.getId(), 0);
+        PCB v= ProcesoBloqueante.crear(e.pc, "V", 5, 20, 500, 1, 5000, 5000, 0);
         e.pc.admit(v);
         for (int i= 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++){
             e.tick();
@@ -247,7 +247,7 @@ public class PruebasReactivacion {
     private static void cicloCompleto() {
         titulo("Ciclo completo: suspender -> ocurre su evento -> reactivar");
         Entorno e = new Entorno(30);
-        PCB a = ProcessFactory.createIoBound("A", 5, 20, 500, 1, 60, 5000, e.pc.getId(), 0);
+        PCB a = ProcesoBloqueante.crear(e.pc, "A", 5, 20, 500, 1, 60, 5000, 0);
         e.pc.admit(a);
         for (int i = 0; i < 30 && a.getState() != ProcessState.BLOCKED; i++) {
             e.tick();

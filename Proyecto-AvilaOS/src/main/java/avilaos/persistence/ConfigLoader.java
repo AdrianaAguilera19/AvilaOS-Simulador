@@ -48,9 +48,7 @@ public class ConfigLoader {
             case CPU_BOUND:
                 return ProcessFactory.createCpuBound(p.name, p.priority, p.memorySize, p.cycles,
                         p.deadline, p.computerId, 0);
-            case IO_BOUND:
-                return ProcessFactory.createIoBound(p.name, p.priority, p.memorySize, p.cycles,
-                        p.ioInterval, p.ioDuration, p.deadline, p.computerId, 0);
+            
             default:
                 throw new IllegalArgumentException("Tipo de proceso no admitido: " + p.type);
         }

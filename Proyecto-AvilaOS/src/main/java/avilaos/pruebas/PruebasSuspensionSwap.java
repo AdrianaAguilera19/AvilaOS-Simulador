@@ -100,7 +100,7 @@ public class PruebasSuspensionSwap {
         }
 
         PCB conEs(String nombre, int prioridad, int memoria, int deadline) {
-            PCB p = ProcessFactory.createIoBound(nombre, prioridad, memoria, 500, 1, 5000, deadline, pc.getId(), ciclo);
+            PCB p = ProcesoBloqueante.crear(pc, nombre, prioridad, memoria, 500, 1, 5000, deadline, ciclo);
             pc.admit(p);
             return p;
         }

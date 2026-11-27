@@ -43,7 +43,7 @@ public class PruebasExportarConfig {
                 && exportada.computers[0].quantum == 3, "PC1: nombre, RAM, Round Robin y quantum 3");
         check(exportada.processes.length == 3, "3 procesos (en cualquier estado)");
         check(todosConDeadlineInicial(exportada, original), "cada proceso conserva su deadline inicial");
-        check(tipos(exportada), "tipos y datos propios de cada tipo (ciclos, E/S)");
+        check(tipos(exportada), "tipos y datos propios de cada proceso (ciclos)");
 
         System.out.println("--- guardar, cargar y reconstruir ---");
         Path archivo = Files.createTempFile("avilaos-config", ".json");
@@ -78,9 +78,9 @@ public class PruebasExportarConfig {
         c.computers = new ConfigDTO.ComputerConfig[] {
             computador("PC1", 300, SchedulingAlgorithm.ROUND_ROBIN, 3)};
         c.processes = new ConfigDTO.ProcessConfig[] {
-            proceso("cpu", ProcessType.CPU_BOUND, 1, 10, 80, 1, 20, 0, 0),
-            proceso("io", ProcessType.IO_BOUND, 2, 10, 90, 1, 12, 3, 2),
-            proceso("cpu2", ProcessType.CPU_BOUND, 3, 10, 60, 1, 8, 0, 0)};
+            proceso("cpu", ProcessType.CPU_BOUND, 1, 10, 80, 1, 20),
+            proceso("io", ProcessType.CPU_BOUND, 2, 10, 90, 1, 12),
+            proceso("cpu2", ProcessType.CPU_BOUND, 3, 10, 60, 1, 8)};
         return c;
     }
 
@@ -94,7 +94,7 @@ public class PruebasExportarConfig {
     }
 
     private static ConfigDTO.ProcessConfig proceso(String n, ProcessType t, int prio, int mem, int deadline,
-            int pc, int cycles, int ioInt, int ioDur) {
+            int pc, int cycles) {
         ConfigDTO.ProcessConfig p = new ConfigDTO.ProcessConfig();
         p.name = n;
         p.type = t;
@@ -103,8 +103,6 @@ public class PruebasExportarConfig {
         p.deadline = deadline;
         p.computerId = pc;
         p.cycles = cycles;
-        p.ioInterval = ioInt;
-        p.ioDuration = ioDur;
         return p;
     }
 
@@ -131,7 +129,7 @@ public class PruebasExportarConfig {
         ConfigDTO.ProcessConfig cpu = buscar(e, "cpu");
         ConfigDTO.ProcessConfig io = buscar(e, "io");
         return cpu != null && cpu.cycles == 20 && cpu.type == ProcessType.CPU_BOUND
-                && io != null && io.cycles == 12 && io.ioInterval == 3 && io.ioDuration == 2;
+                && io != null && io.cycles == 12;
     }
 
     private static int totalProcesos(Cluster c) {
@@ -148,8 +146,7 @@ public class PruebasExportarConfig {
             ConfigDTO.ProcessConfig x = a.processes[i];
             ConfigDTO.ProcessConfig y = buscar(b, x.name);
             if (y == null || x.type != y.type || x.deadline != y.deadline || x.cycles != y.cycles
-                    || x.memorySize != y.memorySize || x.priority != y.priority || x.computerId != y.computerId
-                    || x.ioInterval != y.ioInterval || x.ioDuration != y.ioDuration) {
+                    || x.memorySize != y.memorySize || x.priority != y.priority || x.computerId != y.computerId) {
                 return false;
             }
         }

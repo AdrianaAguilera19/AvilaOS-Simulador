@@ -332,7 +332,7 @@ public class PruebasRam {
         titulo("Un proceso bloqueado conserva su memoria");
         Cluster c = cluster(50);
         Computer pc = c.getComputer(1);
-        PCB io = ProcessFactory.createIoBound("B", 1, 15, 4, 1, 12, 5000, 1, c.getCurrentCycle());
+        PCB io = ProcesoBloqueante.crear(c, 1, "B", 1, 15, 4, 1, 12, 5000, c.getCurrentCycle());
         c.submit(io);
         ticks(c, 4);
         check(io.getState() == ProcessState.BLOCKED, "el proceso de E/S queda bloqueado esperando el disco");
@@ -355,8 +355,8 @@ public class PruebasRam {
         todos[1] = proceso(c, "B", 25, 4, 500);
         todos[2] = proceso(c, "C", 15, 3, 500);
         todos[3] = proceso(c, "D", 30, 5, 12);       // algunos vencen
-        PCB io1 = ProcessFactory.createIoBound("I1", 1, 10, 4, 2, 3, 5000, 1, 0);
-        PCB io2 = ProcessFactory.createIoBound("I2", 1, 10, 4, 1, 2, 5000, 1, 0);
+        PCB io1 = ProcesoBloqueante.crear(c, 1, "I1", 1, 10, 4, 2, 3, 5000, 0);
+        PCB io2 = ProcesoBloqueante.crear(c, 1, "I2", 1, 10, 4, 1, 2, 5000, 0);
         c.submit(io1);
         c.submit(io2);
         todos[4] = io1;

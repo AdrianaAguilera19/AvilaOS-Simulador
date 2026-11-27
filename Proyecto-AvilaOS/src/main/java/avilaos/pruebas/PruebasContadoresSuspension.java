@@ -121,7 +121,7 @@ public class PruebasContadoresSuspension {
 
         /** Proceso con E/S larga: queda Bloqueado en RAM y es candidato a victima. */
         PCB bloqueado(String nombre, int memoria) {
-            PCB p = ProcessFactory.createIoBound(nombre, 5, memoria, 500, 1, 5000, 5000, pc.getId(), 0);
+            PCB p = ProcesoBloqueante.crear(pc, nombre, 5, memoria, 500, 1, 5000, 5000, 0);
             pc.admit(p);
             return p;
         }
@@ -150,7 +150,7 @@ public class PruebasContadoresSuspension {
     private static void unaSuspensionYUnaReactivacion() {
         titulo("Una suspension y una reactivacion");
         Entorno e = new Entorno(30);
-        PCB v = ProcessFactory.createIoBound("V", 5, 20, 500, 1, 60, 5000, e.pc.getId(), 0);
+        PCB v = ProcesoBloqueante.crear(e.pc, "V", 5, 20, 500, 1, 60, 5000, 0);
         e.pc.admit(v);
         for (int i = 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++) {
             e.tick();
@@ -175,8 +175,8 @@ public class PruebasContadoresSuspension {
     private static void variasSuspensiones() {
         titulo("Dos victimas: dos suspensiones y dos reactivaciones");
         Entorno e = new Entorno(40);
-        PCB v1 = ProcessFactory.createIoBound("V1", 5, 15, 500, 1, 60, 5000, e.pc.getId(), 0);
-        PCB v2 = ProcessFactory.createIoBound("V2", 5, 15, 500, 1, 60, 5000, e.pc.getId(), 0);
+        PCB v1 = ProcesoBloqueante.crear(e.pc, "V1", 5, 15, 500, 1, 60, 5000, 0);
+        PCB v2 = ProcesoBloqueante.crear(e.pc, "V2", 5, 15, 500, 1, 60, 5000, 0);
         e.pc.admit(v1);
         e.pc.admit(v2);
         for (int i = 0; i < 40 && !(v1.getState() == ProcessState.BLOCKED && v2.getState() == ProcessState.BLOCKED); i++) {
@@ -195,7 +195,7 @@ public class PruebasContadoresSuspension {
     private static void suspensionCanceladaNoCuenta() {
         titulo("Una suspension cancelada no suma");
         Entorno e = new Entorno(30);
-        PCB v = ProcessFactory.createIoBound("V", 5, 20, 500, 1, 5000, 14, e.pc.getId(), 0);   // vence a los 14 ciclos, con la escritura al swap a medias
+        PCB v = ProcesoBloqueante.crear(e.pc, "V", 5, 20, 500, 1, 5000, 14, 0);   // vence a los 14 ciclos, con la escritura al swap a medias
         e.pc.admit(v);
         for (int i = 0; i < 30 && v.getState() != ProcessState.BLOCKED; i++) {
             e.tick();
